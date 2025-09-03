@@ -1,4 +1,4 @@
-# dotnetvite.ps1
+# Dotnet + Vite MVC project Generator
 
 This PowerShell script automates the setup of a modern ASP.NET MVC project integrated with [Vite](https://vitejs.dev/) as the frontend build tool. It allows you to quickly scaffold a .NET MVC application with your choice of frontend frameworks (React, Vue, Svelte, Angular, etc.), and automatically wires up the Vite dev/build process with .NET's static file serving.
 
