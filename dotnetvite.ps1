@@ -1151,7 +1151,7 @@ if ($framework -eq "react" -or $framework -eq "solid" -or $framework -eq "preact
     }
     elseif ($framework -eq "react" -or $framework -eq "preact") {
         
-        $_constState = "useState<IWeatherData[]>([])"
+        $_constState = "const [weatherData, setWeatherData] = useState<IWeatherData[]>([])"
         $_setState = "setWeatherData(data)"
     }
     elseif ($framework -eq "angular") {
@@ -2849,3 +2849,4 @@ elseif ($choice -eq "3") {
 else {
     Write-Host "Invalid option" -ForegroundColor Red
 }
+
