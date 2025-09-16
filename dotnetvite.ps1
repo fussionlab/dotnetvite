@@ -1,3 +1,33 @@
+# Check if ng is installed
+try {
+    # This command will throw an error if 'ng' is not found
+   $ngcheck = Get-Command ng -ErrorAction Stop
+   if($null -ne $ngcheck)
+   {
+    Write-Host "Starting.."
+   }
+}
+catch {
+    Write-Host "Angular CLI not found. Installing..."
+    
+    # Set the execution policy to allow scripts to run
+    # This is often required for npm global packages on Windows
+    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+    
+    # Install the Angular CLI globally
+    npm install -g @angular/cli
+    
+    # Check if the installation was successful
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Angular CLI installed successfully. You may need to restart PowerShell or open a new terminal window for the 'ng' command to be recognized."
+        Start-Process -FilePath "powershell" -ArgumentList "ng version"
+        Write-Host "Angular CLI installed open new terminal and start process once again" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Failed to install Angular CLI. Please check your npm and network configuration."
+    }
+}
+
 # Prompt for project name 
 Write-Host "Enter your project name:" -ForegroundColor Cyan
 $projectName = Read-Host 
@@ -228,7 +258,7 @@ public class WeatherForecast
 "@
 
 # Framework options
-$frameworks = @("", "vanilla", "vue", "react", "preact", "lit", "svelte", "solid", "qwik", "angular", "marko")
+$frameworks = @("", "vanilla", "vue", "react", "preact", "lit", "svelte", "solid", "qwik", "angular", "marko", "others")
 $color = @("White", "Green", "Yellow", "Cyan", "Magenta", "Blue", "Gray", "DarkCyan", "DarkGreen", "DarkYellow", "DarkMagenta", "DarkRed")
 
 Write-Host "Select a framework:" -ForegroundColor Cyan
@@ -507,36 +537,6 @@ Write-Host "Mvc project '$projectName' created successfully with Vite setup." -F
 Write-Host "`nRunning: npm create vite@latest clientapp --template $template" -ForegroundColor Green
 
 if ($framework -eq "angular") {
-    # Check if ng is installed
-    try {
-        # This command will throw an error if 'ng' is not found
-    $ngcheck = Get-Command ng -ErrorAction Stop
-    if($null -ne $ngcheck)
-    {
-        Write-Host "Starting.." -ForegroundColor Green
-    }
-    }
-    catch {
-        Write-Host "Angular CLI not found. Installing..."
-        
-        # Set the execution policy to allow scripts to run
-        # This is often required for npm global packages on Windows
-        Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
-        
-        # Install the Angular CLI globally
-        npm install -g @angular/cli
-        
-        # Check if the installation was successful
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Angular CLI installed successfully. You may need to restart PowerShell or open a new terminal window for the 'ng' command to be recognized."
-            Start-Process -FilePath "powershell" -ArgumentList "ng version"
-            Write-Host "Angular CLI installed open new terminal and start process once again" -ForegroundColor Green
-        }
-        else {
-            Write-Host "Failed to install Angular CLI. Please check your npm and network configuration."
-        }
-    }
-
     # Ask about Zone.js
     Write-Host "Do you want to include Zone.js? (y/n):" -ForegroundColor Cyan
     $useZoneJs = Read-Host 
@@ -608,68 +608,9 @@ elseif($framework -eq "marko"){
   }
 }
 "@
-
  npm i marko@next page
  npm i -D vite @marko/vite bootstrap
- if($variantLanguage -eq "ts"){
-Set-Content -Path ".\ClientApp\tsconfig.json" -Value @"
-{
-  "include": ["src/**/*"],
-  "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "lib": ["dom", "ESNext"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "noImplicitOverride": true,
-    "noUnusedLocals": true,
-    "outDir": "dist",
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "target": "ESNext",
-    "verbatimModuleSyntax": true,
-    "types": ["vite/client"]
-  }
 }
-"@
-$typeAny = ":any"
-$typeHTMLElement = ":HTMLElement"
-$typeVoid = ":void"
-$typeRecord ="?: Record<string, any>"
-}
-Set-Content -Path ".\clientapp\src\router.$variantLanguage" @"
-import page from "page";
-import Home from "./pages/Home.marko";
-import Counter from "./pages/Counter.marko";
-import WeatherForecast from "./pages/WeatherForecast.marko";
-import Layout from "./pages/index.marko";
-
-let layoutInstance$typeHTMLElement;
-let routeContainer$typeHTMLElement;
-let currentView$typeHTMLElement;
-
-export function initRouter(mountPoint) {
-layoutInstance = Layout.mount({}, mountPoint);
-routeContainer = mountPoint.querySelector("#router-view");
-
-page("/", () => loadView(Home, { name: "Client" }));
-page("/counter", () => loadView(Counter));
-page("/fetch-data", () => loadView(WeatherForecast, {}));
-page();
-}
-
-function loadView(ViewComponent$typeAny, props$typeRecord)$typeVoid {
-if (currentView) {
-    currentView.destroy && currentView.destroy();
-    routeContainer.innerHTML = "";
-}
-
-currentView = ViewComponent.mount(props, routeContainer);
-}
-"@
-}
-
 else {
     # Original Vite logic remains
     npx create-vite@latest clientapp --template $template
@@ -727,7 +668,8 @@ else {
     $extention = $variantLanguage
 }
 # Create vite.config.js
-if ($framework -ne "angular" -or $framework -ne "lit"){
+if ($framework -eq "angular" -or $framework -eq "lit") {}
+else {
     Set-Content -Path "ClientApp\vite.config.$extention" -Value @"
 import { defineConfig } from 'vite';
 $pluginImport
@@ -758,13 +700,26 @@ export default defineConfig({
 });
 "@
 }
-if ($framework -in @("vue", "react", "preact", "svelte", "qwik", "lit", "vanilla")) {
-    switch ($variantLanguage) {
-        "tsx" { $variant = "ts" }
-        "jsx" { $variant = "js" }
-        default { $variant = $variantLanguage }
+if (
+    $framework -eq "vue" -or
+    $framework -eq "react" -or
+    $framework -eq "preact" -or
+    $framework -eq "svelte" -or
+    $framework -eq "qwik" -or
+    $framework -eq "lit" -or
+    $framework -eq "vanilla"
+) {
+    $varaint = ""
+    if ($variantLanguage -eq "tsx") {
+        $varaint = "ts"
+    } 
+    elseif ($variantLanguage -eq "jsx") {
+        $varaint = "js"
     }
-    Set-Content -Path "$clientPath/src/router.config.$variant" -Value @"
+    else {
+        $varaint = $variantLanguage
+    }
+    Set-Content -Path "$clientPath/src/router.config.$varaint" -Value @"
 // routes.config.js
 export const routes = [
   {
@@ -868,13 +823,15 @@ $mainStyle = @"
 }
 "@
 
-if ($variantLanguage -in @("tsx", "jsx") -and $framework -notin @("preact", "lit", "vanilla", "solid", "qwik")) {
+if ($framework -eq "preact" -or $framework -eq "lit" -or $framework -eq "vanilla" -or $framework -eq "solid" -or $framework -eq "qwik") {
+    $className = "class"
+}
+elseif ($variantLanguage -eq "tsx" -or $variantLanguage -eq "jsx") {
     $className = "className"
 }
 else {
     $className = "class"
 }
-
 $navbarContent = @"
 <header $className="bg-white w-100" >
         <nav $className="navbar navbar-expand-sm navbar-light bg-light border-bottom shadow-sm mb-3">
@@ -919,7 +876,8 @@ $footerContent =
         <p $className="mb-0 text-end">
            <a $className="link-text" href="https://github.com/fussionlab/dotnetvite" target="_blank">
                 <span>
-                    <svg height="24" aria-hidden="true" viewBox="0 0 24 24" width="24" data-view-component="true" $className="octicon octicon-mark-github v-align-middle">
+                    <svg height="24" aria-hidden="true" viewBox="0 0 24 24" version="1.1"
+                            width="24" data-view-component="true" $className="octicon octicon-mark-github v-align-middle">
                             <path
                                 d="M12 1C5.923 1 1 5.923 1 12c0 4.867 3.149 8.979 7.521 10.436.55.096.756-.233.756-.522 0-.262-.013-1.128-.013-2.049-2.764.509-3.479-.674-3.699-1.292-.124-.317-.66-1.293-1.127-1.554-.385-.207-.936-.715-.014-.729.866-.014 1.485.797 1.691 1.128.99 1.663 2.571 1.196 3.204.907.096-.715.385-1.196.701-1.471-2.448-.275-5.005-1.224-5.005-5.432 0-1.196.426-2.186 1.128-2.956-.111-.275-.496-1.402.11-2.915 0 0 .921-.288 3.024 1.128a10.193 10.193 0 0 1 2.75-.371c.936 0 1.871.123 2.75.371 2.104-1.43 3.025-1.128 3.025-1.128.605 1.513.221 2.64.111 2.915.701.77 1.127 1.747 1.127 2.956 0 4.222-2.571 5.157-5.019 5.432.399.344.743 1.004.743 2.035 0 1.471-.014 2.654-.014 3.025 0 .289.206.632.756.522C19.851 20.979 23 16.854 23 12c0-6.077-4.922-11-11-11Z">
                             </path>
@@ -1085,6 +1043,18 @@ $LitContent = @"
 </tbody>
 "@
         }
+        elseif ($framework -eq "vue") {
+            $LitContent = @"
+            <tbody>
+                <tr v-for="(item, key) in weatherData" :key="key">
+                    <td>{{ new Date(item.date).toLocaleDateString() }}</td>
+                    <td>{{ item.temperatureC }} &deg;C</td>
+                    <td>{{ item.temperatureF }} &deg;F</td>
+                    <td>{{ item.summary }}</td>
+                </tr>
+            </tbody>
+"@
+        }
         elseif ($framework -eq "solid" -or $framework -eq "react" -or $framework -eq "preact" -or $framework -eq "qwik") {
             $_functionNameImplement = ""
             if ($framework -eq "solid") {
@@ -1189,6 +1159,41 @@ $_constPointer fetchData = async () => {
 };
 "@
 }
+elseif ($framework -eq "vue") {
+$_typeVueTs = ""
+    if($variantLanguage -eq "ts") {
+        $_typeVueTs = ': IWeatherData[]'
+        $_refVue = "ref<IWeatherData[]>"
+        $vueInterface = $_IWeatherInterface
+    }else{
+        $_typeVueTs = ""
+        $_refVue = "ref"
+        $vueInterface = ""
+    }
+
+    $fetchDataFunction = @"
+$vueInterface
+const weatherData =  $_refVue([]);
+const fetchData = () => {
+    fetch('/api/weatherforecast')
+        .then(response => {
+            if (!response.ok) {
+                // Return a rejected promise if the network response was bad.
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then((data$_typeVueTs) => {
+            // Update the state with the fetched data.
+            weatherData.value = data;
+        })
+        .catch(error => {
+            // Catch any errors from the fetch or the .then() block.
+            console.error('Fetch error:', error);
+        });
+};
+"@
+}
 elseif($framework -eq "marko") {
 
 if($variantLanguage -eq "ts") {
@@ -1203,9 +1208,15 @@ $markInterface
 
 <let/weatherData$typeTs = []>   
 <const/fetchData = async () => {
+try {
    const response = await fetch("/api/weatherforecast");
+   if (!response.ok) throw new Error('Network response was not ok');
    const data$typeTs = await response.json();
+
     weatherData = data; // This triggers reactivity
+} catch (error) {
+   console.error('Fetch error:', error);    
+}
 }>
 "@
 }
@@ -1328,7 +1339,7 @@ elseif ($framework -eq "vanilla") {
     </div>
 "@
 }
-elseif ($framework -eq "vanilla") {
+elseif ($framework -eq "vanilla" -or $framework -eq "others") {
     $counterButton = $_globalButton
 }elseif ($framework -eq "marko") {
    $counterButton = @"
@@ -1709,7 +1720,7 @@ const increment = () => {
         "vue" {
             if ($templateName -eq "WeatherForecast") {
                 $extraImports = @"
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 "@
                 $extraScript = @"
 $fetchDataFunction
@@ -1807,7 +1818,6 @@ import { state } from 'lit/decorators.js';
 import { onMount } from 'svelte';
 "@
                 $extraScript = @"
-let weatherData: IWeatherData[] = [];
 $fetchDataFunction
 onMount(() => {
     fetchData();
@@ -1816,10 +1826,7 @@ onMount(() => {
             }
             elseif ($templateName -eq "Counter") {
                 $weatherInterface = ""
-                $extraImports = @"
-import { onMount } from 'svelte';
-"@
-
+                $extraImports = ""
                 $extraScript = @"
 let count = `$`state(0);
 const increment = () => {
@@ -1967,7 +1974,29 @@ else {
 }
 Get-MarkoTemplate -htmlContent $htmlContent -scripts $extraScript
         }
-       
+        "others" {
+            if ($templateName -eq "WeatherForecast") {
+                $extraImports = ""
+                $extraScript = @"
+$fetchDataFunction
+fetchData();
+"@
+            }
+            elseif ($templateName -eq "Counter") {
+                $extraImports = ""
+                $extraScript = @"
+const count = 0;
+const increment = () => {
+    count++;
+};
+"@
+            }
+            else {
+                $extraImports = ""
+                $extraScript = ""
+            }
+            Get-VanillaTemplate -htmlContent $htmlContent -scripts $extraScript -styles "" -componentName $templateName
+        }
         default {
             Write-Error "Unsupported framework: $framework"
             return ""
@@ -1987,7 +2016,7 @@ else {
 }
 
 $fetchDataContent = ""
-if ($framework -eq "lit" -or $framework -eq "svelte" -or $framework -eq "solid" -or $framework -eq "react" -or $framework -eq "preact" -or $framework -eq "angular" -or $framework -eq "qwik" -or $framework -eq "marko") {
+if ($framework -eq "lit" -or $framework -eq "svelte" -or $framework -eq "solid" -or $framework -eq "react" -or $framework -eq "preact" -or $framework -eq "angular" -or $framework -eq "qwik" -or $framework -eq "marko" -or $framework -eq "vue") {
     $fetchDataContent = Get-FetchContent -Content $true
 }
 else {
@@ -2173,7 +2202,7 @@ else{
     }
     elseif ($framework -eq "svelte") {
         Get-AddToFileContent -FilePath $clientPath"/src/pages" -FileName "Home.$extension" -AddContent $svgImports -FindContent "</script>" -Action "above"
-        Move-Item -Path "$clientPath\public\assets\*.svg" -Destination $clientPath"\public\"
+        # Move-Item -Path "$clientPath\public\assets\*.svg" -Destination $clientPath"\public\"
     }
     
 
@@ -2198,6 +2227,12 @@ else{
         $app = $null
         switch ($framework) {
             "react" {   
+if($variantLanguages -eq "tsx"){
+    $filePathType =" as () => Promise<{ default: React.ComponentType<any> }>)()"
+}
+else{
+    $filePathType ="()"
+}
                 $app = @"
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router';
@@ -2212,7 +2247,7 @@ const App = () => {
              <Routes>
                     {config.map(({ path, componentPath }, index) => {
                         const filePath = ``$`{componentPath}.$variantLanguages``; // Must match glob
-                        const Component = lazy(() => pages[filePath]());
+                        const Component = lazy(() => pages[filePath]$filePathType);
                         return (
                             <Route
                                 key={index}
@@ -2288,8 +2323,44 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 "@ `
                     -FindContent "import App from " -Action "below"
                 Get-AddToFileContent -FilePath $clientPath"/src/" -FileName "main.$variantLanguage" -AddContent "createApp(App).use(router).mount('#app');" -FindContent "createApp\(App\)" -Action "replace"
+                move-Item -Path $clientPath"\public\assets\vue.svg" -Destination $clientPath"\public\"
             }
             "lit" {
+        $app = @"
+import { LitElement, html } from 'lit';
+import { customElement } from 'lit/decorators.js';
+import { Router } from '@lit-labs/router';
+
+// Importing components so they're registered
+import './components/Navbar.$variantLanguage';
+import './components/Footer.$variantLanguage';
+import './pages/Home.$variantLanguage';
+import './pages/Counter.$variantLanguage';
+import './pages/WeatherForecast.$variantLanguage';
+
+@customElement('app-element')
+export class App extends LitElement {
+ createRenderRoot() {
+    // Render into light DOM (no Shadow DOM)
+    return this;
+  }
+
+  render() {
+    return html``
+      <navbar-element></navbar-element>
+      <div>`$`{this._routes.outlet()}</div>
+      <footer-element></footer-element>
+    ``;
+  }
+
+   private _routes = new Router(this, [
+        { path: '/', render: () =>  html``<home-element></home-element>`` },
+        { path: '/counter', render: () =>  html``<counter-element></counter-element>`` },
+        { path: '/fetch-data', render: () =>  html``<weatherforecast-element></weatherforecast-element>`` },
+    ]);
+}
+"@
+     
                 Set-Content -Path "$clientPath/src/main.$variantLanguage" -Value @"
 import { LitElement, html } from 'lit';
 import { customElement} from 'lit/decorators.js';
@@ -2343,8 +2414,60 @@ $mainStyle
             }
             "marko"
             {
+    if($variantLanguage -eq "ts") {
+    Set-Content -Path ".\tsconfig.json" @"
+    {
+    "include": ["src/**/*"],
+    "compilerOptions": {
+        "allowSyntheticDefaultImports": true,
+        "lib": ["dom", "ESNext"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "noEmit": true,
+        "noImplicitOverride": true,
+        "noUnusedLocals": true,
+        "outDir": "dist",
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "target": "ESNext",
+        "verbatimModuleSyntax": true
+    }
+    }
+"@
 
-    
+$typeAny = ":any"
+}   
+    Set-Content -Path ".\clientapp\src\router.$variantLanguage" @"
+import page from "page";
+import Home from "./pages/Home.marko";
+import Counter from "./pages/Counter.marko";
+import WeatherForecast from "./pages/WeatherForecast.marko";
+import Layout from "./pages/index.marko";
+
+let layoutInstance$typeAny;
+let routeContainer$typeAny;
+let currentView$typeAny;
+
+export function initRouter(mountPoint) {
+layoutInstance = Layout.mount({}, mountPoint);
+routeContainer = mountPoint.querySelector("#router-view");
+
+page("/", () => loadView(Home, { name: "Client" }));
+page("/counter", () => loadView(Counter));
+page("/fetch-data", () => loadView(WeatherForecast, {}));
+page();
+}
+
+function loadView(ViewComponent, props) {
+if (currentView) {
+    currentView.destroy && currentView.destroy();
+    routeContainer.innerHTML = "";
+}
+
+currentView = ViewComponent.mount(props, routeContainer);
+}
+"@
     
 Set-Content -Path ".\clientapp\src\pages\index.marko" -Value @"
 <Navbar />
@@ -2573,9 +2696,18 @@ $mainStyle
 "@
                 Set-Content -Path $clientPath"/src/index.css" -Value ""
                 Get-AddToFileContent -FilePath $clientPath"/src/" -FileName "index.$variantLanguage" -AddContent "import 'bootstrap/dist/css/bootstrap.min.css';" -FindContent "import \'.\/index.css\'" -Action "above"
-                Rename-Item -Path $clientPath"/src/index.$variantLanguage" -NewName "main.$variantLanguage" -Force
+                Get-AddToFileContent -FilePath "./Views/shared/" -FileName "_Layout.cshtml" -AddContent @"
+                <script type="module" src="http://localhost:5173/src/index.$variantLanguage"></script>
+"@ \ -FindContent "main.$variantLanguage" -Action "replace"
+                
             }
             "preact" {
+if($variantLanguage -eq "tsx"){
+    $filePathType =" as () => Promise<{ default: preact.FunctionComponent<any> }>)()"
+}
+else{
+    $filePathType ="()"
+}
                 $app = @"
 import { lazy, Suspense } from 'preact/compat';
 import Router from 'preact-router';
@@ -2591,9 +2723,9 @@ export function App() {
       <Navbar />
       <Suspense fallback={<div>Loading...</div>}>
         <Router>
-          {config.map(({ path, componentPath }, index) => {
+           {config.map(({ path, componentPath }, index) => {
             const filePath = ``$`{componentPath}.$variantLanguage``; // Must match glob
-            const Component = lazy(() => pages[filePath]());
+            const Component = lazy(() => (pages[filePath] $filePathType);
             return <Component key={index} path={path} />;
           })}
         </Router>
@@ -2610,42 +2742,7 @@ export default App;
                 Set-Content -Path $clientPath"/src/index.css" -Value $mainStyle
                 Move-Item -Path $clientPath"\public\assets\*.svg" -Destination $clientPath"\public\"
             }
-            "lit" {
-                $app = @"
-import { LitElement, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
-import { Router } from '@lit-labs/router';
 
-// Importing components so they're registered
-import './components/Navbar.$variantLanguage';
-import './components/Footer.$variantLanguage';
-import './pages/Home.$variantLanguage';
-import './pages/Counter.$variantLanguage';
-import './pages/WeatherForecast.$variantLanguage';
-
-@customElement('app-element')
-export class App extends LitElement {
- createRenderRoot() {
-    // Render into light DOM (no Shadow DOM)
-    return this;
-  }
-
-  render() {
-    return html``
-      <navbar-element></navbar-element>
-      <div>`$`{this._routes.outlet()}</div>
-      <footer-element></footer-element>
-    ``;
-  }
-
-   private _routes = new Router(this, [
-        { path: '/', render: () =>  html``<home-element></home-element>`` },
-        { path: '/counter', render: () =>  html``<counter-element></counter-element>`` },
-        { path: '/fetch-data', render: () =>  html``<weatherforecast-element></weatherforecast-element>`` },
-    ]);
-}
-"@
-}       
 "vanilla" {
                 if ($variantLanguage -eq "ts") {
                     $_tsHtElType = ": HTMLElement"
@@ -2761,7 +2858,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 Move-Item -Path $clientPath"\src\*.svg" -Destination $clientPath"\public\"
 
             }
-
+            "others" {
+                $app = @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$projectName</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+    <div id="app">
+        <navbar-component></navbar-component>
+        <router-outlet></router-outlet>
+        <footer-component></footer-component>
+    </div>
+    <script type="module" src="/src/main.$variantLanguage"></script>
+"@ 
+            }
             default {
                 Write-Error "Unsupported framework: $framework"
                 return ""
@@ -2849,4 +2964,3 @@ elseif ($choice -eq "3") {
 else {
     Write-Host "Invalid option" -ForegroundColor Red
 }
-
