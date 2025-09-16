@@ -23,7 +23,7 @@ else
     npm install -g @angular/cli
 
     # Check if the installation was successful
-    if [ $? -eq 0 ]; then
+    if [ $? == 0 ]; then
         echo -e "${GREEN_TEXT}📥 Angular CLI installed successfully.${RESET_FORMAT}"
         echo -e "${GREEN_TEXT}📂 Angular CLI installed. Open a new terminal and start the process again.${RESET_FORMAT}"
         ng version
@@ -165,7 +165,7 @@ while IFS= read -r line; do
 
     # Inject fallback mapping for production
     if [[ "$line" == *".WithStaticAssets();"* ]]; then
-        cat <<EOF >> "$temp_file"
+        cat << EOF >> "$temp_file"
 if (!app.Environment.IsDevelopment())
 {
     app.MapFallbackToFile("index.html");
@@ -194,14 +194,14 @@ find ./Views/Home -type f ! -name 'Index.cshtml' -delete
 find ./Views/Shared -type f ! -name '_Layout.cshtml' -delete
 
 # Overwrite Index.cshtml
-cat <<EOF > ./Views/Home/Index.cshtml
+cat << EOF > ./Views/Home/Index.cshtml
 @{
     Layout = "_Layout";
 }
 EOF
 
 # Overwrite HomeController.cs
-cat <<EOF > ./Controllers/HomeController.cs 
+cat << EOF > ./Controllers/HomeController.cs 
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using ${projectName}.Models;
@@ -226,7 +226,7 @@ public class HomeController : Controller
 EOF
 
 # Overwrite WeatherForecastController.cs
-cat <<EOF > ./Controllers/WeatherForecastController.cs
+cat << EOF > ./Controllers/WeatherForecastController.cs
 using Microsoft.AspNetCore.Mvc;
 using ${projectName}.Controllers;
 using ${projectName}.Models;
@@ -263,7 +263,7 @@ public class WeatherForecastController : ControllerBase
 EOF
 
 # Overwrite WeatherForecast.cs
-cat <<EOF > ./Models/WeatherForecast.cs
+cat << EOF > ./Models/WeatherForecast.cs
 using System;
 namespace ${projectName}.Models;
 public class WeatherForecast
@@ -366,7 +366,7 @@ echo -e "${CYAN_TEXT}Template:${RESET_FORMAT} $template"
 echo -e "${CYAN_TEXT}Language extension:${RESET_FORMAT} $variantLanguage"
 
 # Write IWeatherData interface
-IWeatherData=$(cat <<EOF 
+_IWeatherInterface=$(cat << EOF 
 interface IWeatherData {
     date: string;
     temperatureC: number;
@@ -375,9 +375,6 @@ interface IWeatherData {
 }
 EOF
 )
-# Set project name and client path
-clientPath="ClientApp"
-
 # Determine React Refresh injection
 react_refresh=""
 if [[ "$framework" == "react" && ("$variantLanguage" == "tsx" || "$variantLanguage" == "jsx") ]]; then
@@ -535,7 +532,7 @@ case "$format" in
         result=$(IFS=; echo "${normalized[*]}")
         ;;
 esac
-return "$result"
+echo "$result"
 
 }
 
@@ -557,7 +554,7 @@ fi
 # Generate _Layout.cshtml
 layout_path="./Views/Shared/_Layout.cshtml"
 mkdir -p "$(dirname "$layout_path")"
-cat <<EOF > "$layout_path"
+cat << EOF > "$layout_path"
 @using ${projectName}.Helpers
 @inject ViteManifest viteManifest
 
@@ -581,7 +578,7 @@ cat <<EOF > "$layout_path"
     else
     {
       $react_refresh
-      <script type="module" src="http://localhost:$port/$main_src"></script>
+      <script type="module" src="http://localhost:$port/@@vite/client"></script>
     }
 </head>
 <body>
@@ -678,8 +675,8 @@ if [[ "$framework" == "angular" ]]; then
 
 elif [[ "$framework" == "marko" ]]; then
     # Marko setup
-mkdir -p ClientApp
-cat <<EOF > ClientApp/package.json
+mkdir ClientApp 
+cat << EOF > ./ClientApp/package.json
 {
   "name": "clientapp",
   "version": "0.0.1",
@@ -696,10 +693,8 @@ cat <<EOF > ClientApp/package.json
 }
 EOF
 
-    echo "Do you want to use TypeScript for Marko? (y/n):"
-    read use_ts
-    if [[ "$use_ts" == "y" ]]; then
-        cat <<EOF > ClientApp/tsconfig.json
+if [[ "$variantLanguage" == "ts" ]]; then
+        cat << EOF > ./ClientApp/tsconfig.json
 {
   "include": ["src/**/*"],
   "compilerOptions": {
@@ -720,21 +715,19 @@ EOF
   }
 }
 EOF
-        variantLanguage="ts"
-        type_any=":any"
-        type_html_element=":HTMLElement"
-        type_void=":void"
-        type_record="?: Record<string, any>"
-    else
-        variantLanguage="js"
-        type_any=""
-        type_html_element=""
-        type_void=""
-        type_record=""
-    fi
+    type_any=":any"
+    type_html_element=":HTMLElement"
+    type_void=":void"
+    type_record="?: Record<string, any>"
+else
+    type_any=""
+    type_html_element=""
+    type_void=""
+    type_record=""
+fi
 
-    mkdir -p ClientApp/src/pages
-    cat <<EOF > ClientApp/src/router.${variantLanguage}
+    mkdir -p ./ClientApp/src/pages
+cat << EOF > ./ClientApp/src/router.${variantLanguage}
 import page from "page";
 import Home from "./pages/Home.marko";
 import Counter from "./pages/Counter.marko";
@@ -768,14 +761,11 @@ EOF
     cd ClientApp
     npm install marko@next page
     npm install -D vite @marko/vite bootstrap
+    cd .. 
 else 
     # Run Vite scaffolding
 echo "Running: npm create vite@latest clientapp -- --template $template"
 npm create vite@latest clientapp -- --template $template 
-fi
-
-if [[ "$framework" == "lit" ]]; then
-    get_add_to_file_content "./src" "index.html" "<script type=\"module\" src=\"/src/main.$variantLanguage\"></script>" "\@\@vite\/client\"><\/script>" "below"
 fi
 
 if [ "$framework" != "marko" ]; then
@@ -796,11 +786,18 @@ tagsPath="$clientPath/src/tags"
 
 if [[ "$framework" == "marko" ]]; then
 
-   mkdir "$clientPath/public" "$pagesPath" "$clientPath/src/tags"
+   mkdir "$clientPath/public"  $pagesPath "$clientPath/src/tags"
 fi
+
+if [[ "$framework" == "lit" ]]; then
+    get_add_to_file_content "./$clientPath/" "index.html" "<script type=\"module\" src=\"/src/main.$variantLanguage\"></script>" "\@\@vite\/client\"><\/script>" "below"
+fi
+
 # Create folders
-if [[ "$framework" != "angular" ]] && [[ "$framework" != "marko" ]]; then
+if [[ "$framework" != "angular" ]]; then
     mkdir -p "$componentsPath" "$pagesPath"
+elif [[ "$framework" != "marko" ]]; then
+    mkdir -p "$tagsPath" "$pagesPath"
 fi
 
 # Move assets to public
@@ -818,29 +815,25 @@ cat << EOF > "$clientPath/public/vite.svg"
 EOF
 fi
 curl -o "$clientPath/public/dotnet.svg" "https://raw.githubusercontent.com/dotnet/brand/refs/heads/main/logo/dotnet-logo.svg"
-# Create index.html
-cat << EOF > "$clientPath/public/index.html"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dotnet Vite</title>
-    <link rel="icon" type="image/x-icon" href="/dotnet.svg">
-</head>
-<body>
-    <h1>Welcome to Dotnet Vite</h1>
-</body>
-</html>
-EOF
 
-if [[ "$framework" == "angular" ]]; then
 
-cat <<EOF > "ClientApp/vite.config.$extention"
+if [[ "$framework" =~ ^(vue|lit|solid|qwik|preact|react|vanilla)$ ]]; then
+    case "$variantLanguage" in
+        "tsx") variant="ts" ;;
+        "jsx") variant="js" ;;
+        *)   variant="$variantLanguage" ;;
+    esac
+elif [[ "$framework" =~ ^(svelte|marko)$ ]]; then
+    variant="$variantLanguage"
+fi
+if [[ "$framework" != "angular" ]]; then
+
+cat << EOF > "$clientPath/vite.config.$variant"
+// vite.config.$variant
 import { defineConfig } from 'vite';
-$pluginImport
+$plugin_import
 export default defineConfig({
- $pluginUsage,
+ $plugin_usage,
  server: {
         port: 5173,
         strictPort: true,
@@ -866,50 +859,9 @@ export default defineConfig({
 });
 EOF
 
-if [[ "$framework" =~ ^(vue|lit|solid|qwik|preact|react|vanilla)$ ]]; then
-    case "$variantLanguage" in
-        tsx) variant="ts" ;;
-        jsx) variant="js" ;;
-        *)   variant="$variantLanguage" ;;
-    esac
-fi
-
-cat <<EOF > "$clientPath/src/router.config.$variant"
-// routes.config.js
-export const routes = [
-  {
-    path: '/',
-    name: 'Home',
-    componentPath: './pages/Home',
-    meta: {
-      title: 'Home Page',
-      requiresAuth: false
-    }
-  },
-  {
-    path: '/counter',
-    name: 'Counter',
-    componentPath: './pages/Counter',
-    meta: {
-      title: 'Counter Page',
-      requiresAuth: false
-    }
-  },
-  {
-    path: '/fetch-data',
-    name: 'WeatherForecast',
-    componentPath: './pages/WeatherForecast',
-    meta: {
-      title: 'Weather Forecast',
-      requiresAuth: true
-    }
-  }
-];
-export default routes;
-EOF
-elif [ "$framework" -eq "solid" ]; then
-cat <<EOF > "$clientPath/src/router.config.$variantLanguage"
-// routes.config.$variantLanguage
+if [ "$framework" == "solid" ]; then
+cat << EOF > "$clientPath/src/router.config.$variant"
+// routes.config.$variant
 import { lazy } from "solid-js";
 
 export const routes = [
@@ -943,28 +895,64 @@ export const routes = [
 ];
 export default routes;
 EOF
-
-_frameworkBasedSvg = $null
-if [ "$framework" -eq "svelte" -o "$framework" -eq "solid" ]; then
-    _frameworkBasedSvg = "import $($framework)Logo from '/assets/$framework.svg';"
-elif [ "$framework" -eq "vanilla" ]; then
-    if [ "$variantLanguage" -eq "ts" ]; then
-        _frameworkBasedSvg = "import typescriptLogo from '/typescript.svg';"
-    elif [ "$variantLanguage" -eq "js" ]; then
-        _frameworkBasedSvg = "import javascriptLogo from '/javascript.svg';"
+else
+cat << EOF > "$clientPath/src/router.config.$variant"
+// routes.config.$variant
+export const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    componentPath: './pages/Home',
+    meta: {
+      title: 'Home Page',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/counter',
+    name: 'Counter',
+    componentPath: './pages/Counter',
+    meta: {
+      title: 'Counter Page',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/fetch-data',
+    name: 'WeatherForecast',
+    componentPath: './pages/WeatherForecast',
+    meta: {
+      title: 'Weather Forecast',
+      requiresAuth: true
+    }
+  }
+];
+export default routes;
+EOF
+fi
+fi
+# Create SVG imports
+_frameworkBasedSvg=""
+if [[ "$framework" == "svelte" || "$framework" == "solid" ]]; then
+    _frameworkBasedSvg="import ${framework}Logo from '/assets/$framework.svg';"
+elif [ "$framework" == "vanilla" ]; then
+    if [ "$variantLanguage" == "ts" ]; then
+        _frameworkBasedSvg="import typescriptLogo from '/typescript.svg';"
+    elif [ "$variantLanguage" == "js" ]; then
+        _frameworkBasedSvg="import javascriptLogo from '/javascript.svg';"
     fi
 else
-    _frameworkBasedSvg = "import $($framework)Logo from '/$framework.svg';"
+    _frameworkBasedSvg="import ${framework}Logo from '/$framework.svg';"
 fi
 
-svgImports = $(cat <<EOF
+svgImports=$(cat << EOF
 import viteLogo from '/vite.svg';
 $_frameworkBasedSvg
 import dotnetLogo from '/dotnet.svg';
 EOF
 )
 
-mainStyle = $(cat <<EOF
+mainStyle=$(cat << EOF
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -974,13 +962,14 @@ mainStyle = $(cat <<EOF
 }
 EOF
 )
-
+# Determine class or className
+className=""
 case "$framework" in
-  preact|lit|vanilla|solid|qwik)
+  "preact"|"lit"|"vanilla"|"solid"|"qwik")
     className="class"
     ;;
   *)
-    if [ "$variantLanguage" = "tsx" ] || [ "$variantLanguage" = "jsx" ]; then
+    if [[ "$variantLanguage" == "tsx" ]] || [[ "$variantLanguage" == "jsx" ]]; then
       className="className"
     else
       className="class"
@@ -988,12 +977,11 @@ case "$framework" in
     ;;
 esac
 
-
-navbarContent = $(cat <<EOF
+navbarContent=$(cat << EOF
 <header $className="bg-white w-100" >
         <nav $className="navbar navbar-expand-sm navbar-light bg-light border-bottom shadow-sm mb-3">
             <div $className="container">
-            <a  $className="navbar-brand text-uppercase" href="/">$projectName</a>
+            <a  $className="navbar-brand text-uppercase" href="/">${projectName}</a>
             <button
                 $className="navbar-toggler"
                 type="button"
@@ -1023,11 +1011,11 @@ navbarContent = $(cat <<EOF
 </header>
 EOF
 )
-CapitalizeTitle = "${projectName^^}"
-footerContent = $(cat <<EOF
+capitalizeTitle="${projectName^^}"
+footerContent=$(cat << EOF
 <footer $className="w-full bg-light text-center text-lg-start mt-5 py-4">
     <div $className="container d-flex justify-content-between align-items-center px-3">
-        <p $className="mb-0 text-start">$CapitalizeTitle &copy; $(Get-Date -Format yyyy)</p>
+        <p $className="mb-0 text-start">${capitalizeTitle} &copy; $(date +"%Y")</p>
         <p $className="mb-0 text-center">Built with <a href="https://dotnet.microsoft.com" target="_blank">.NET</a> and
             <a href="https://vitejs.dev" target="_blank">Vite.js</a></p>
         <p $className="mb-0 text-end">
@@ -1046,69 +1034,95 @@ footerContent = $(cat <<EOF
 </footer>
 EOF
 )
+
 get_home_content() {
 
 # Inputs
-main_framework="$1"     # e.g., react
-mode="${2:-html}"       # default to html
-links="$3"              # e.g., https://react.dev
-css_class="$4"          # e.g., className
-variantLanguage="${5:-tsx}"  # optional, used for logo selection
+local main_framework="$1"     # e.g., react
+local mode="$2"       # default to html
+local links="$3"              # e.g., https://react.dev
+local css_class="$4"          # e.g., className
+local variantLang="$5"  # optional, used for logo selection
 
+declare -g content=""
 # Capitalize framework name
 title="$(echo "$main_framework" | sed 's/.*/\u&/')"
 
 
 # Determine logo image
-if [[ "$framework" == "vanilla" && "$variantLanguage" == "js" ]]; then
+if [[ "$main_framework" == "vanilla" && "$variantLang" == "js" ]]; then
     image="javascriptLogo"
-elif [[ "$framework" == "vanilla" && "$variantLanguage" == "ts" ]]; then
+elif [[ "$main_framework" == "vanilla" && "$variantLang" == "ts" ]]; then
     image="typescriptLogo"
+elif [[ "$main_framework" == "vue" ]]; then
+    image="$main_framework"
 else
-    image="${framework}Logo"
+    image="${main_framework}Logo"
 fi
 
 # Generate content block
-if [[ "$framework" == "angular" && "$mode" == "import" ]]; then
-    content=$(cat <<EOF
-    <div $css_class='d-flex justify-content-center gap-4 py-4'>
-        https://dotnet.microsoft.com
-        https://vitejs.dev
+if [[ "$main_framework" == "angular" && "$mode" == "import" ]]; then
+    content=$(cat << EOF
+    <div $css_class="d-flex justify-content-center gap-4 py-4">
+       <a href="https://dotnet.microsoft.com" target="_blank">
+        <img [src]="dotnetLogo" $css_class="logo" alt=".NET logo" />
+        </a>
+        <a href="https://vitejs.dev" target="_blank">
+        <img [src]="viteLogo" $css_class="logo" alt="Vite logo" />
+        </a>
         <a href="$links" target="_blank">
-            <img [src]="angularLogo" $css_class="logo" alt="$title logo" />
+        <img [src]="angularLogo" $css_class="logo" alt="$title logo" />
         </a>
     </div>
 EOF
 )
-elif [[ "$mode" == "import" && "$framework" =~ ^(lit|vanilla|marko)$ ]]; then
-    content=$(cat <<EOF
+elif [[ "$mode" == "import" && "$main_framework" =~ ^(lit|marko)$ ]]; then
+_tilt=""
+if [[ "$main_framework" == "lit" ]] || [[ "$main_framework" == "marko" ]]; then
+    _tilt="\`"
+else
+    _tilt=""
+fi
+    content=$(cat << EOF
     <div class="d-flex justify-content-center gap-4 py-4">
-        https://dotnet.microsoft.com
-        https://vitejs.dev
+        <a href="https://dotnet.microsoft.com" target="_blank">
+            <img src=$_tilt\${dotnetLogo}$_tilt class="logo" alt=".NET logo" />
+        </a>
+        <a href="https://vitejs.dev" target="_blank">
+            <img src=$_tilt\${viteLogo}$_tilt class="logo" alt="Vite logo" />
+        </a>
         <a href="$links" target="_blank">
-            <img src="\${$image}" class="logo" alt="$framework logo" />
+            <img src=$_tilt\${$image}$_tilt class="logo" alt="$main_framework logo" />
         </a>
     </div>
 EOF
 )
 elif [[ "$mode" == "import" ]]; then
-    content=$(cat <<EOF
-    <div $css_class='d-flex justify-content-center gap-4 py-4'>
-        https://dotnet.microsoft.com
-        https://vitejs.dev
+    content=$(cat << EOF
+    <div $css_class="d-flex justify-content-center gap-4 py-4">
+         <a href="https://dotnet.microsoft.com" target="_blank">
+            <img src="\${dotnetLogo}" class="logo" alt=".NET logo" />
+        </a>
+        <a href="https://vitejs.dev" target="_blank">
+            <img src="\${viteLogo}" class="logo" alt="Vite logo" />
+        </a>
         <a href="$links" target="_blank">
-            <img src={${image}} $css_class="logo" alt="$title logo" />
+            <img src="\${$image}" class="logo" alt="$main_framework logo" />
         </a>
     </div>
 EOF
 )
 else
-    content=$(cat <<EOF
-    <div $css_class='d-flex justify-content-center gap-4 py-4'>
-        https://dotnet.microsoft.com
-        https://vitejs.dev
+ content=$(cat << EOF
+    <div $css_class="d-flex justify-content-center gap-4 py-4">
+        <a href="https://dotnet.microsoft.com" target="_blank">
+            <img src="dotnet.svg" $css_class="logo" alt=".NET logo" />
+        </a>
+        <a href="https://vitejs.dev" target="_blank">
+            <img src="vite.svg" $css_class="logo" alt="Vite logo" />
+        </a>
         <a href="$links" target="_blank">
-            <img src="/${framework}.svg" $css_class="logo" alt="$title logo" />
+            <img src="${image}.svg" $css_class="logo" alt="$main_framework logo" />
         </a>
     </div>
 EOF
@@ -1116,11 +1130,11 @@ EOF
 fi
 
 # Final section
-cat <<EOF
-<section $css_class='container px-4 py-5 text-center'>
+cat << EOF
+<section $css_class="container px-4 py-5 text-center">
     $content
-    <h1 $css_class='display-1 fw-bold text-secondary'>Dotnet + Vite + $title</h1>
-    <p $css_class='lead'>This is a simple ASP.NET MVC application with Vite.js setup.</p>
+    <h1 $css_class="display-1 fw-bold text-secondary">Dotnet + Vite + $title</h1>
+    <p $css_class="lead">This is a simple ASP.NET MVC application with Vite.js setup.</p>
 </section>
 EOF
 }
@@ -1128,15 +1142,15 @@ EOF
 # Fetch Function Content
 
 get_fetch_content() {
-    local framework="$1"         # e.g., react, svelte, angular
+    local main_framework="$1"         # e.g., react, svelte, angular
     local content_enabled="$2"   # true or false
     local class_name="$3"        # e.g., className or class
 
-    local tbody=""
+    declare -g tbody=""
     if [[ "$content_enabled" == "true" ]]; then
-        case "$framework" in
-            lit)
-                tbody=$(cat <<EOF
+        case "$main_framework" in
+            "lit")
+                tbody=$(cat << EOF
 <tbody>
     \${this.weatherData.map(item => html\`
         <tr>
@@ -1150,8 +1164,8 @@ get_fetch_content() {
 EOF
 )
                 ;;
-            svelte)
-                tbody=$(cat <<EOF
+            "svelte")
+                tbody=$(cat << EOF
 <tbody>
     {#each weatherData as forecast}
         <tr>
@@ -1165,8 +1179,8 @@ EOF
 EOF
 )
                 ;;
-            marko)
-                tbody=$(cat <<EOF
+           "marko")
+                tbody=$(cat << EOF
 <tbody>
     <for |item| of=weatherData>
         <tr>
@@ -1180,8 +1194,8 @@ EOF
 EOF
 )
                 ;;
-            angular)
-                tbody=$(cat <<EOF
+            "angular")
+                tbody=$(cat << EOF
 <tbody>
     @for (forecast of weatherData(); track forecast.date) {
         <tr class="forecast-item">
@@ -1195,16 +1209,29 @@ EOF
 EOF
 )
                 ;;
-            solid|react|preact|qwik)
+            "vue")
+                tbody=$(cat << EOF
+<tbody>
+    <tr v-for="(item, index) in weatherData" :key="index">
+        <td>{{ new Date(item.date).toLocaleDateString() }}</td>
+        <td>{{ item.temperatureC }} &deg;C</td>
+        <td>{{ item.temperatureF }} &deg;F</td>
+        <td>{{ item.summary }}</td>
+    </tr>
+</tbody>
+EOF
+)
+                ;;
+            "solid"|"react"|"preact"|"qwik")
                 local data_accessor=""
-                case "$framework" in
-                    solid) data_accessor="weatherData()" ;;
-                    qwik)  data_accessor="weatherData.value" ;;
+                case "$main_framework" in
+                    "solid") data_accessor="weatherData()" ;;
+                    "qwik")  data_accessor="weatherData.value" ;;
                     *)     data_accessor="weatherData" ;;
                 esac
-                tbody=$(cat <<EOF
+                tbody=$(cat << EOF
 <tbody>
-    \${$data_accessor.map((item, key) => (
+    {$data_accessor.map((item, key) => (
         <tr key={key}>
             <td>{new Date(item.date).toLocaleDateString()}</td>
             <td>{item.temperatureC} &deg;C</td>
@@ -1218,16 +1245,16 @@ EOF
                 ;;
         esac
     else
-        tbody='<tbody id="weatherData"></tbody>'
+        tbody="<tbody id=\"weatherData\"></tbody>"
     fi
 
     # Final section
-    cat <<EOF
+    cat << EOF
 <section $class_name="container px-4 py-5">
     <h1 $class_name="display-2 text-secondary text-center">Fetch Weather Forecast Data</h1>
     <p $class_name="lead text-center">
         This section fetches data from the ASP.NET WeatherForeCastController API.
-        To view the API <a $class_name="linklink-underline-info" target="_blank" href="/api/weatherforecast">Click Here</a>
+        To view the API <a $class_name="link link-underline-info" target="_blank" href="/api/weatherforecast">Click Here</a>
     </p>
     <table $class_name="mt-2 table table-striped table-bordered">
         <thead>
@@ -1275,7 +1302,7 @@ if [[ "$framework" =~ ^(react|solid|preact|angular|lit|svelte|qwik)$ ]]; then
         _setState="weatherData = data;"
     fi
 
-    fetchDataFunction=$(cat <<EOF
+fetchDataFunction=$(cat << EOF
 
 $_constState
 
@@ -1291,21 +1318,45 @@ $_constPointer fetchData = async () => {
 };
 EOF
 )
-
+elif [[ "$framework" == "vue" ]]; then
+    if [[ "$variantLanguage" == "ts" ]]; then
+        _typeTs=": IWeatherData[]"
+        _typeRef="ref<IWeatherData[]>;"
+    else
+        _typeRef="ref"
+        _typeTs=""
+    fi
+    fetchDataFunction=$(cat << EOF
+const weatherData = $_typeRef([]);
+const fetchData = () => {
+    fetch('/api/weatherforecast')
+        .then(response => {
+            if (!response.ok) {
+                // Return a rejected promise if the network response was bad.
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then((data$_typeTs) => {
+            // Update the state with the fetched data.
+            weatherData.value = data;
+        })
+        .catch(error => {
+            // Catch any errors from the fetch or the .then() block.
+            console.error('Fetch error:', error);
+        });
+};
+EOF
+)
 elif [[ "$framework" == "marko" ]]; then
     if [[ "$variantLanguage" == "ts" ]]; then
-        _markInterface="export interface IWeatherData {
-    date: string;
-    temperatureC: number;
-    temperatureF: number;
-    summary: string;
-}"
+        _markInterface="export $_IWeatherInterface"
         _typeTs=": IWeatherData[]"
     else
         _typeTs=""
     fi
 
-    fetchDataFunction=$(cat <<EOF
+    fetchDataFunction=$(cat << EOF
 $_markInterface
 
 <let/weatherData$_typeTs = []>   
@@ -1318,24 +1369,33 @@ EOF
 )
 
 else
-    fetchDataFunction=$(cat <<'EOF'
-const fetchData = async () => {
+if [[ "$variantLanguage" == "ts" ]]; then
+    _typeTs=": IWeatherData[]"
+else
+    _typeTs=""
+fi
+    fetchDataFunction=$(cat << EOF
+const fetchData =  () => {
     try {
-        const response = await fetch('/api/weatherforecast');
+        const response =  fetch('/api/weatherforecast');
         if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
+        const data$_typeTs =  response.json();
 
         const tableBody = document.querySelector('#weatherData');
+         if (!tableBody) {
+            console.error('Table body element not found');
+            return;
+        }
         tableBody.innerHTML = '';
 
-        data.forEach(item => {
+        data.forEach((item) => {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${new Date(item.date).toLocaleDateString()}</td>
-                <td>${item.temperatureC} &deg;C</td>
-                <td>${item.temperatureF} &deg;F</td>
-                <td>${item.summary}</td>
-            `;
+            row.innerHTML = \`
+                <td>\${new Date(item.date).toLocaleDateString()}</td>
+                <td>\${item.temperatureC} &deg;C</td>
+                <td>\${item.temperatureF} &deg;F</td>
+                <td>\${item.summary}</td>
+            \`;
             tableBody.appendChild(row);
         });
     } catch (error) {
@@ -1377,10 +1437,10 @@ declare -A CountValueMap=(
 
 clickAttr="${ClickAttributeMap[$framework]:-${ClickAttributeMap[others]}}"
 countValue="${CountValueMap[$framework]:-${CountValueMap[others]}}"
-
+counterButton=""
 # Generate counter button HTML
 if [[ "$framework" == "lit" ]]; then
-    counterButton=$(cat <<EOF
+    counterButton=$(cat << EOF
   <p id="counterValue"  $className="display-3 text-center">$countValue</p>
   <div $className="d-flex justify-content-center gap-3">
     <button $className="btn btn-success" $clickAttr="\${this.increment}">Increment</button>
@@ -1390,7 +1450,7 @@ if [[ "$framework" == "lit" ]]; then
 EOF
 )
 elif [[ "$framework" == "vanilla" ]]; then
-    counterButton=$(cat <<EOF
+    counterButton=$(cat << EOF
   <p id="counterValue"  $className="display-3 text-center">$countValue</p>
   <div $className="d-flex justify-content-center gap-3">
     <button id="incrementBtn" class="btn btn-success">Increment</button>
@@ -1400,17 +1460,17 @@ elif [[ "$framework" == "vanilla" ]]; then
 EOF
 )
 elif [[ "$framework" == "marko" ]]; then
-    counterButton=$(cat <<EOF
+    counterButton=$(cat << EOF
   <p id="counterValue"  $className="display-3 text-center">$countValue</p>
   <div $className="d-flex justify-content-center gap-3">
-    <button $className="btn btn-success" $clickAttr="{increment()}">Increment</button>
-    <button $className="btn btn-warning" $clickAttr="{decrement()}">Decrement</button>
-    <button $className="btn btn-danger" $clickAttr="{reset()}">Reset</button>
+    <button $className="btn btn-success" $clickAttr{increment()}>Increment</button>
+    <button $className="btn btn-warning" $clickAttr{decrement()}>Decrement</button>
+    <button $className="btn btn-danger" $clickAttr{reset()}>Reset</button>
   </div>
 EOF
 )
 elif [[ "$framework" == "angular" ]]; then
-    counterButton=$(cat <<EOF
+    counterButton=$(cat << EOF
   <p id="counterValue"  $className="display-3 text-center">$countValue</p>
   <div $className="d-flex justify-content-center gap-3">
     <button $className="btn btn-success" $clickAttr="increment()">Increment</button>
@@ -1420,25 +1480,26 @@ elif [[ "$framework" == "angular" ]]; then
 EOF
 )
 else
-    counterButton=$(cat <<EOF
+    counterButton=$(cat << EOF
   <p id="counterValue"  $className="display-3 text-center">$countValue</p>
   <div $className="d-flex justify-content-center gap-3">
-    <button $className="btn btn-success" $clickAttr="{increment}">Increment</button>
-    <button $className="btn btn-warning" $clickAttr="{decrement}">Decrement</button>
-    <button $className="btn btn-danger" $clickAttr="{reset}">Reset</button>
+    <button $className="btn btn-success" $clickAttr={increment}>Increment</button>
+    <button $className="btn btn-warning" $clickAttr={decrement}>Decrement</button>
+    <button $className="btn btn-danger" $clickAttr={reset}>Reset</button>
   </div>
 EOF
 )
 fi
 
 # Final counter section
-counterContent = cat <<EOF
+counterContent=$(cat << EOF
 <section $className="container px-4 py-5">
   <h1 $className="display-2 text-secondary text-center py-4">Counter</h1>
   <p $className="text-center lead">This is a simple counter component.</p>
   $counterButton
 </section>
 EOF
+)
 
 get_react_component(){
     local htmlContent="$1"        # HTML content to be wrapped
@@ -1446,7 +1507,7 @@ get_react_component(){
     local scripts="$3"            # Additional scripts to be included
     local imports="$4"            # Import statements for the component
 
-cat <<EOF
+cat << EOF
 $imports
 
 const $componentName = () => {
@@ -1470,7 +1531,7 @@ get_vue_component(){
     local scripts="$3"            # Additional scripts to be included
     local imports="$4"            # Import statements for the component
 
-cat <<EOF
+cat << EOF
 <template>
     $htmlContent
 </template>
@@ -1489,9 +1550,11 @@ get_svelte_component(){
     local componentName="$2"      # Name of the Svelte component
     local scripts="$3"            # Additional scripts to be included
     local imports="$4"            # Import statements for the component
+    local styles="$5"             # Additional styles to be included
+    local Interface="$6"          # Interface definitions if any
 
-cat <<EOF
-<script lang='$variantLanguage'>
+cat << EOF
+<script lang='$variant'>
 $imports
 $Interface
 $scripts
@@ -1511,16 +1574,17 @@ get_lit_component() {
     local componentName="$2"
     local scripts="$3"
     local imports="$4"
+    local interface="$5"
 
-    local _ElementName
-    _ElementName=$(convert-cases "$componentName" "PascalCase")
+    declare -g _ElementName
+    _ElementName=$(convert_cases "$componentName" "PascalCase")
 
-    local formatedComponentName
-    formatedComponentName=$(convert-cases "$componentName" "LowerCase")
+    declare -g formatedComponentName
+    formatedComponentName=$(convert_cases "$componentName" "LowerCase")
 
-    local forTitle=""
-    if [[ "$componentName" == "WeatherForecast" || "$componentName" == "Counter" || "$componentName" == "Home" ]]; then
-        forTitle=$(cat <<EOF
+    declare -g forTitle=""
+if [[ "$componentName" == "WeatherForecast" || "$componentName" == "Counter" || "$componentName" == "Home" ]]; then
+    forTitle=$(cat << EOF
     connectedCallback(){
         super.connectedCallback();
         document.title = '${componentName}';
@@ -1529,7 +1593,7 @@ EOF
 )
     fi
 
-    cat <<EOF
+cat << EOF
 import { LitElement, html, css } from 'lit';
 import {customElement} from 'lit/decorators.js';
 $imports
@@ -1561,15 +1625,15 @@ EOF
 }
 
 
-get-qwik-component(){
+get_qwik_component(){
     local htmlContent="$1"        # HTML content to be wrapped
     local scripts="$2"            # Additional scripts to be included
     local imports="$3"            # Import statements for the component
 
-cat <<EOF
+cat << EOF
 $imports
 import {component$} from '@builder.io/qwik';
-export default component`$`(() => {
+export default component\$(() => {
     $scripts
     return (
         <>
@@ -1581,29 +1645,29 @@ EOF
 
 }
 
-get-marko-component() {
-    local htmlContent="$1"        # HTML content to be wrapped
-    local scripts="$2"            # Additional scripts to be included
-    local imports="$3"            # Import statements for the component
-    local styles="$4"             # Styles for the component
+get_marko_component() {
+  local htmlContent="$1"        # HTML content to be wrapped
+  local scripts="$2"            # Additional scripts to be included
+  local imports="$3"            # Import statements for the component
 
-    if [ $styles != "" ]; then
-        $_style = $styles
-    fi
-    if [ $imports != "" ]; then
-        $_import = $imports
-    fi
-    if [ $scripts != "" ]; then
-        $_script = $scripts
-    fi
+  local _import=""
+  local _script=""
 
-return $(cat <<EOF
+  if [[ -n "$imports" ]]; then
+    _import="$imports"
+  fi
+  if [[ -n "$scripts" ]]; then
+    _script="$scripts"
+  fi
+
+  cat <<EOF
 $_import
 $_script
 $htmlContent
 EOF
-)
 }
+
+
 
 get_vanilla_component() {
     local htmlContent="$1"        # HTML content to be wrapped
@@ -1611,21 +1675,20 @@ get_vanilla_component() {
     local imports="$3"            # Import statements for the component
     local componentName="$4"      # Name of the component
     local additionalScripts="$5"
+    declare -g _extra=""
+    declare -g _setup=""
 
-_extra=""
-    if [ $imports ]; then
-        $_extra = $imports
+
+    if [[ $imports ]]; then
+        _extra=$imports
     fi
-    if [ $additionalScripts ]; then
-        $_extra = $additionalScripts
+    if [[ $componentName == "WeatherForecast" ]] || [[ $componentName == "Counter" ]]; then
+        _setup=", setup"
     fi
-_setup=""
-    if [ $componentName == "WeatherForecast" ] || [ $componentName == "Counter" ]; then
-        $_setup = ", setup"
-    fi
-    echo $(cat <<EOF
+    cat << EOF
 const $componentName = () => {
     $_extra
+    $additionalScripts
     const section = document.createElement('div');
     section.className = 'w-100 m-auto';
     section.innerHTML = \`
@@ -1636,27 +1699,26 @@ const $componentName = () => {
 };
 export default $componentName;
 EOF
-)
 }
 
+weatherInterface="export $_IWeatherInterface"
 
 get_wrapped_template() {
     local htmlContent="$1"
     local templateName="$2"
-
-    extraImports=""
-    extraScript=""
-    weatherInterface=""
-
-    case "$framework" in
-        react)
-            if [[ "$templateName" == "WeatherForecast" ]]; then
-                extraImports=$(cat <<EOF
+    local main_framework="$3"
+    declare -g extraImports=""
+    declare -g extraScript=""
+    
+case "$main_framework" in
+    "react")
+        if [[ "$templateName" == "WeatherForecast" ]]; then
+                extraImports=$(cat << EOF
 import { useEffect, useState } from 'react';
 $weatherInterface
 EOF
 )
-                extraScript=$(cat <<EOF
+extraScript=$(cat << EOF
 $fetchDataFunction
 
 useEffect(() => {
@@ -1664,12 +1726,12 @@ useEffect(() => {
 }, []);
 EOF
 )
-            elif [[ "$templateName" == "Counter" ]]; then
-                extraImports=$(cat <<EOF
+elif [[ "$templateName" == "Counter" ]]; then
+    extraImports=$(cat << EOF
 import { useState } from 'react';
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 const [count, setCount] = useState(0);
 
 const increment = () => {
@@ -1689,14 +1751,14 @@ EOF
             get_react_component "$htmlContent" "$templateName" "$extraScript" "$extraImports"
             ;;
         
-        preact)
+        "preact")
             if [[ "$templateName" == "WeatherForecast" ]]; then
-                extraImports=$(cat <<EOF
+                extraImports=$(cat << EOF
 import { useEffect, useState } from 'preact/hooks';
 $weatherInterface
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 $fetchDataFunction
 
 useEffect(() => {
@@ -1705,11 +1767,11 @@ useEffect(() => {
 EOF
 )
             elif [[ "$templateName" == "Counter" ]]; then
-                extraImports=$(cat <<EOF
+                extraImports=$(cat << EOF
 import { useState } from 'preact/hooks';
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 const [count, setCount] = useState(0);
 
 const increment = () => {
@@ -1729,14 +1791,14 @@ EOF
             get_react_component "$htmlContent" "$templateName" "$extraScript" "$extraImports"
             ;;
         
-        solid)
+        "solid")
             if [[ "$templateName" == "WeatherForecast" ]]; then
-                extraImports=$(cat <<EOF
+                extraImports=$(cat << EOF
 import { createSignal, onMount } from 'solid-js';
 $weatherInterface
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 $fetchDataFunction
 
 onMount(() => {
@@ -1745,11 +1807,11 @@ onMount(() => {
 EOF
 )
             elif [[ "$templateName" == "Counter" ]]; then
-                extraImports=$(cat <<EOF
+                extraImports=$(cat << EOF
 import { createSignal } from 'solid-js';
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 const [count, setCount] = createSignal(0);
 
 const increment = () => {
@@ -1769,13 +1831,19 @@ EOF
             get_react_component "$htmlContent" "$templateName" "$extraScript" "$extraImports"
             ;;
         
-        vue)
+        "vue")
             if [[ "$templateName" == "WeatherForecast" ]]; then
-                extraImports=$(cat <<EOF
-import { onMounted } from 'vue';
+            if [[ "$variantLanguage" == "ts" ]]; then
+                _Interface="$_IWeatherInterface"
+            else
+                _Interface=""
+            fi
+                extraImports=$(cat << EOF
+$_Interface
+import { onMounted, ref } from 'vue';
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 $fetchDataFunction
 onMounted(() => {
  fetchData();    
@@ -1783,11 +1851,11 @@ onMounted(() => {
 EOF
 )
             elif [[ "$templateName" == "Counter" ]]; then
-                extraImports=$(cat <<EOF
+                extraImports=$(cat << EOF
 import { ref, computed } from 'vue';
 EOF
 )
-                extraScript=$(cat <<EOF
+                extraScript=$(cat << EOF
 const count = ref(0);
 const increment = computed(() => {
     count.value++;
@@ -1804,31 +1872,281 @@ const reset = computed(() => {
 EOF
 )
             fi
-            get_vue_template "$htmlContent" "$extraScript" "$extraImports" ""
+            get_vue_component "$htmlContent" "$templateName" "$extraScript" "$extraImports" ""
             ;;
-        
-        # … (same pattern for lit, svelte, qwik, vanilla, marko)
-        
-        *)
-            echo "Unsupported framework: $framework"
-            return 1
-            ;;
-    esac
+  "lit")
+    if [[ "$templateName" == "WeatherForecast" ]]; then
+      isFunction=$(cat << EOF
+\${this.weatherData.map(item => html\`
+  <tr>
+    <td>\${new Date(item.date).toLocaleDateString()}</td>
+    <td>\${item.temperatureC}</td>
+    <td>\${item.temperatureF}</td>
+    <td>\${item.summary}</td>
+  </tr>
+\`)}
+EOF
+)
+      extraImports="import { state } from 'lit/decorators.js';"
+      extraScript=$(cat << EOF
+@state()
+weatherData: IWeatherData[] = [];
+firstUpdated() {
+  this.fetchData();
 }
 
-homeContent = ""
+$fetchDataFunction
+EOF
+)
+    elif [[ "$templateName" == "Counter" ]]; then
+      extraImports="import { property } from 'lit/decorators.js';"
+      extraScript=$(cat << EOF
+@property({ type: Number })
+count = 0;
 
-if [ $framework == "react" ] || [ $framework == "preact" ] || [ $framework == "solid" ] || [ $framework == "qwik" ] || [ $framework == "lit" ] || [ $framework == "svelte" ] || [ $framework == "vanilla" ] || [ $framework == "angular" ] || [ $framework == "marko" ]; then
-    $homeContent = get_home_content $framework -Mode "import" -Links $frameworkLink  -Class $className
+private increment = () => {
+  this.count++;
+};
+
+private decrement = () => {
+  this.count--;
+};
+
+private reset = () => {
+  this.count = 0;
+};
+EOF
+)
+    else
+      extraImports=""
+      extraScript=""
+      isFunction=""
+    fi
+
+    get_lit_component "$htmlContent" "$templateName" "$extraScript" "$extraImports" "$WeatherInterface"
+    ;;
+
+  "svelte")
+    if [[ "$templateName" == "WeatherForecast" ]]; then
+      weatherInterface="$_IWeatherInterface"
+      extraImports="import { onMount } from 'svelte';"
+      extraScript=$(cat << EOF
+$fetchDataFunction
+onMount(() => {
+  fetchData();
+});
+EOF
+)
+    elif [[ "$templateName" == "Counter" ]]; then
+      weatherInterface=""
+      extraImports=""
+      extraScript=$(cat << EOF
+let count = \$state(0);
+const increment = () => {
+  count++;
+};
+const decrement = () => {
+  count--;
+};
+const reset = () => {
+  count = 0;
+};
+EOF
+)
+    else
+      weatherInterface=""
+      extraImports=""
+      extraScript=""
+    fi
+
+    get_svelte_component "$htmlContent" "$templateName" "$extraScript" "$extraImports" "" "$weatherInterface"
+    ;;
+
+  "qwik")
+    if [[ "$templateName" == "WeatherForecast" ]]; then
+      extraImports=$(cat << EOF
+import { useSignal, useVisibleTask\$ } from '@builder.io/qwik';
+$_IWeatherInterface
+EOF
+)
+      extraScript=$(cat << EOF
+$fetchDataFunction
+
+useVisibleTask\$(() => {
+  fetchData();
+});
+EOF
+)
+    elif [[ "$templateName" == "Counter" ]]; then
+      extraImports="import {\$, useSignal } from '@builder.io/qwik';"
+      extraScript=$(cat << EOF
+const count = useSignal(0);
+const increment = \$(() => {
+  count.value++;
+});
+const decrement = \$(() => {
+  count.value--;
+});
+const reset = \$(() => {
+  count.value = 0;
+});
+EOF
+)
+    else
+      extraImports=""
+      extraScript=""
+    fi
+
+    get_qwik_component "$htmlContent" "$extraScript" "$extraImports" "$templateName" ""
+    ;;
+
+  "vanilla")
+    if [[ "$variantLanguage" == "ts" ]]; then
+      _tsHtElType="<HTMLElement>"
+      _tsBtnType="<HTMLButtonElement>"
+
+    else
+      _tsHtElType=""
+      _tsBtnType=""
+    fi
+      extraImports=""
+      extraCode=""
+    if [[ "$templateName" == "WeatherForecast" ]]; then
+      extraImports=""
+      extraCode=""
+      extraScript=$(cat << EOF
+const setup = () => {
+  $fetchDataFunction
+  fetchData();
+};
+EOF
+)
+
+    elif [[ "$templateName" == "Counter" ]]; then
+      extraCode="let count = 0;"
+      extraScript=$(cat << EOF
+const counterValue = section.querySelector$_tsHtElType('#counterValue');
+const incrementBtn = section.querySelector$_tsBtnType('#incrementBtn');
+const decrementBtn = section.querySelector$_tsBtnType('#decrementBtn');
+const resetBtn = section.querySelector$_tsBtnType('#resetBtn');
+
+if (!counterValue || !incrementBtn || !decrementBtn || !resetBtn) {
+  console.error('Counter elements not found');
+  return { html: section.outerHTML, setup: () => {} };
+}
+
+const setup = () => {
+  const updateDisplay = () => {
+    if (counterValue) counterValue.textContent = count.toString();
+  };
+
+  incrementBtn?.addEventListener("click", () => {
+    count++;
+    updateDisplay();
+  });
+
+  decrementBtn?.addEventListener("click", () => {
+    count--;
+    updateDisplay();
+  });
+
+  resetBtn?.addEventListener("click", () => {
+    count = 0;
+    updateDisplay();
+  });
+
+  updateDisplay();
+};
+EOF
+)
+      extraImports=""
+    else
+      extraImports=""
+      extraScript=""
+      extraCode=""
+    fi
+
+    get_vanilla_component "$htmlContent" "$extraScript" "$extraImports" "$templateName" "$extraCode"
+    ;;
+
+  "marko")
+    if [[ "$templateName" == "WeatherForecast" ]]; then
+      extraScript=$(cat << EOF
+$fetchDataFunction
+<lifecycle 
+ onMount(){
+    fetchData();
+ }
+>
+EOF
+)
+    elif [[ "$templateName" == "Counter" ]]; then
+      extraScript=$(cat << EOF
+<let/count=0/>
+<const/increment = () => {
+  count++;
+}>
+<const/decrement = () => {
+  count--;
+}>
+<const/reset = () => {
+  count = 0;
+}>
+EOF
+)
+    else
+      extraScript=""
+    fi
+
+    get_marko_component "$htmlContent" "$extraScript"
+    ;;
+
+  "others")
+    if [[ "$templateName" == "WeatherForecast" ]]; then
+      extraImports=""
+      extraScript=$(cat << EOF
+$fetchDataFunction
+fetchData();
+EOF
+)
+    elif [[ "$templateName" == "Counter" ]]; then
+      extraImports=""
+      extraScript=$(cat << EOF
+const count = 0;
+const increment = () => {
+  count++;
+};
+EOF
+)
+    else
+      extraImports=""
+      extraScript=""
+    fi
+
+    get_vanilla_component "$htmlContent" "$extraScript" "$extraImports" "$templateName" ""
+    ;;
+
+  *)
+    echo "Unsupported framework: $framework" >&2
+    exit 1
+    ;;
+esac
+
+}
+
+homeContent=""
+
+if [[ $framework == "react" || $framework == "preact" || $framework == "solid" || $framework == "qwik" || $framework == "lit" || $framework == "svelte" || $framework == "vanilla" || $framework == "angular" || $framework == "marko" ]]; then
+  homeContent=$(get_home_content "$framework" "import" "$framework_link" "$className" "$variantLanguage")
 else 
-    $homeContent = get_home_content $framework -Mode "html" -Links $frameworkLink -Class $className
+  homeContent=$(get_home_content "$framework" "html" "$framework_link" "$className" "$variantLanguage")
+fi
 
-
-fetchDataContent = ""
-if [ $framework == "lit" ] || [ $framework == "svelte" ] || [ $framework == "solid" ] || [ $framework == "react" ] || [ $framework == "preact" ] || [ $framework == "angular" ] || [ $framework == "qwik" ] || [ $framework == "marko" ]; then
-    $fetchDataContent = get_fetch_content -Content $true
+fetchDataContent=""
+if [ $framework == "lit" ] || [ $framework == "svelte" ] || [ $framework == "solid" ] || [ $framework == "react" ] || [ $framework == "preact" ] || [ $framework == "angular" ] || [ $framework == "qwik" ] || [ $framework == "marko" ] || [ $framework == "vue" ]; then
+    fetchDataContent=$(get_fetch_content "$framework" "true" "$className")
 else
-    $fetchDataContent = get_fetch_content
+    fetchDataContent=$(get_fetch_content "$framework" "false" "$className")
 fi
 
 #All components and pages with raw HTML content
@@ -1840,50 +2158,54 @@ componentsTemplates=(
     "WeatherForecast:$fetchDataContent"
 )
 
-if [ "$framework" = "angular" ]; then
-    pushd ./ClientApp || exit
+if [[ "$framework" == "angular" ]]; then
+  pushd ./$clientapp || exit
 
-    # Create Angular components
-    for compItem in "${componentsTemplates[@]}"; do
-        compName="${compItem%%:*}"
-        compNamePascal="$(echo "$compName" | sed -E 's/(^|_)([a-z])/\U\2/g')"
+  # Generate Angular components
+  for compPair in "${componentsTemplates[@]}"; do
+    name="${compPair%%:*}"
+    content="${compPair#*:}"
+    compPascal=$(convert_cases "$name" "PascalCase")
 
-        if [ "$compNamePascal" = "Navbar" ] || [ "$compNamePascal" = "Footer" ]; then
-            compPath="./components/${compName,,}"
-        else
-            compPath="./pages/${compName,,}"
-        fi
+    if [[ "$name" == "Navbar" || "$name" == "Footer" ]]; then
+      compPath="components/${name,,}"
+    else
+      compPath="pages/${name,,}"
+    fi
 
-        echo "Creating Angular component: $compPath"
-        ng g c "$compPath"
-    done
+    echo "Creating Angular component: $compPath"
+    ng g c "$compPath"
+  done
 
-    npm i bootstrap
+  npm install bootstrap
 
-get_add_to_file_content "./src/app/" "app.routes.ts" \
-"import { Home } from './pages/home/home';
-import { Counter } from './pages/counter/counter';
-import { Weatherforecast } from './pages/weatherforecast/weatherforecast';
+  # Update app.routes.ts
+  get_add_to_file_content \
+    "./src/app/" "app.routes.ts" \
+    'import {Home } from "./pages/home/home";
+import { Counter } from "./pages/counter/counter";
+import { Weatherforecast } from "./pages/weatherforecast/weatherforecast";
 export const routes: Routes = [
   {
-    path: '',
+    path: "",
     component: Home,
-    data: { title: 'Home Page', requiresAuth: false },
+    data: { title: "Home Page", requiresAuth: false },
   },
   {
-    path: 'counter',
+    path: "counter",
     component: Counter,
-    data: { title: 'Counter Page', requiresAuth: false },
+    data: { title: "Counter Page", requiresAuth: false },
   },
   {
-    path: 'fetch-data',
+    path: "fetch-data",
     component: Weatherforecast,
-    data: { title: 'Weather Forecast', requiresAuth: true },
+    data: { title: "Weather Forecast", requiresAuth: true },
   },
-];" \
-    "export const routes: Routes = \[\];" "replace"
+];' \
+    "export const routes: Routes = [];" "replace"
 
-    cat <<EOF > "./src/app/app.html"
+  # Update app.html
+  cat << EOF > "./src/app/app.html"
 <app-navbar/>
 <div class="container">
   <router-outlet></router-outlet>
@@ -1891,119 +2213,131 @@ export const routes: Routes = [
 <app-footer/>
 EOF
 
-get_add_to_file_content "./src/app/" "app.ts" \
-"import { Navbar } from './components/navbar/navbar';
+  # Update app.ts
+  get_add_to_file_content "./src/app/" "app.ts" \
+    "import { Navbar } from './components/navbar/navbar';
 import { Footer } from './components/footer/footer';" \
     "import { RouterOutlet } from '@angular/router';" "below"
 
-get_add_to_file_content "./src/app/" "app.ts" \
-"imports: [RouterOutlet, Navbar, Footer]," \
-    "\[RouterOutlet\]" "replace"
+  get_add_to_file_content "./src/app/" "app.ts" \
+    "imports: [RouterOutlet, Navbar, Footer]," \
+    "[RouterOutlet]" "replace"
 
-    # Add Home Page content
-    for compItem in "${componentsTemplates[@]}"; do
-        name="${compItem%%:*}"
-        content="${compItem#*:}"
+  # Add component content
+  for compPair in "${componentsTemplates[@]}"; do
+    name="${compPair%%:*}"
+    content="${compPair#*:}"
+    nameLower="${name,,}"
 
-        if [ "$name" = "Navbar" ] || [ "$name" = "Footer" ]; then
-            path="./src/app/components/${name,,}"
-        else
-            path="./src/app/pages/${name,,}"
-        fi
+    if [[ "$name" == "Navbar" || "$name" == "Footer" ]]; then
+      path="./src/app/components/$nameLower"
+    else
+      path="./src/app/pages/$nameLower"
+    fi
 
-        mkdir -p "$path"
-        echo "$content" > "$path/${name,,}.html"
+    echo "$content" > "$path/$nameLower.html"
 
-        if [ "$name" = "Home" ]; then
-            get_add_to_file_content "$path/" "${name,,}.ts" \
-"        viteLogo = \"vite.svg\";
-        dotnetLogo = \"dotnet.svg\";
-        angularLogo = \"angular.svg\";" \
-                "export class ${name,,} \{" "below"
+    if [[ "$name" == "Home" ]]; then
+      get_add_to_file_content "$path/" "$nameLower.ts" \
+        'viteLogo = "vite.svg";
+dotnetLogo = "dotnet.svg";
+angularLogo = "angular.svg";' \
+        "export class $nameLower {" "below"
 
-        elif [ "$name" = "Counter" ]; then
-            get_add_to_file_content "$path/" "${name,,}.ts" \
-"  public count: number = 0;
+    elif [[ "$name" == "Counter" ]]; then
+      get_add_to_file_content "$path/" "$nameLower.ts" \
+        'public count: number = 0;
 
-  constructor() { }
+constructor() { }
 
-  public increment() {
-    this.count++;
-    return this.count;
-  }
+public increment() {
+  this.count++;
+  return this.count;
+}
 
-  public decrement() {
-    this.count--;
-    return this.count;
-  }
+public decrement() {
+  this.count--;
+  return this.count;
+}
 
-  public reset() {
-    this.count = 0;
-    return this.count;
-  }" \
-                "export class ${name,,} \{" "below"
+public reset() {
+  this.count = 0;
+  return this.count;
+}' \
+        "export class $nameLower {" "below"
 
-        elif [ "$name" = "WeatherForecast" ]; then
-            get_add_to_file_content "$path/" "${name,,}.ts" \
-"$fetchDataFunction
+    elif [[ "$name" == "WeatherForecast" ]]; then
+      get_add_to_file_content "$path/" "$nameLower.ts" \
+        "$fetchDataFunction
 ngOnInit() {
-    this.fetchData();
+  this.fetchData();
 }
 formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
 }" \
-                "export class ${name,,} \{" "below"
+        "export class $nameLower {" "below"
 
-            get_add_to_file_content "$path/" "${name,,}.ts" \
-"import { Component, OnInit, signal} from '@angular/core';
+      get_add_to_file_content "$path/" "$nameLower.ts" \
+        "import { Component, OnInit, signal } from '@angular/core';
 
 $_IWeatherInterface" \
-                "import { Component }" "replace"
+        "import { Component" "replace"
 
-            get_add_to_file_content "$path/" "${name,,}.ts" \
-"export class Weatherforecast implements OnInit {" \
-                "export class Weatherforecast \{" "replace"
-        fi
-    done
+      get_add_to_file_content "$path/" "$nameLower.ts" \
+        "export class Weatherforecast implements OnInit {" \
+        "export class Weatherforecast {" "replace"
+    fi
+  done
 
-    get_add_to_file_content "./" "package.json" \
-'    "dev": "ng serve",' \
+  # Update package.json
+  get_add_to_file_content "." "package.json" \
+    '    "dev": "ng serve",' \
     '"build":' "above"
 
-    get_add_to_file_content "./" "angular.json" \
-'              "node_modules/bootstrap/dist/css/bootstrap.min.css",' \
+  # Update angular.json
+  get_add_to_file_content "." "angular.json" \
+    '              "node_modules/bootstrap/dist/css/bootstrap.min.css",' \
     '"src/styles.css"' "above"
 
-    get_add_to_file_content "../views/shared/" "_Layout.cshtml" \
-'' \
+  # Update _Layout.cshtml
+  get_add_to_file_content "../views/shared/" "_Layout.cshtml" \
+    "" \
     'href="/lib/dist/bootstrap.min.css"' "replace"
 
-    cat <<EOF > "./src/styles.css"
+  # Create styles.css
+  cat << EOF > "./src/styles.css"
 $mainStyle
 .logo.angular:hover {
   filter: drop-shadow(0 0 2em #e205a7aa);
 }
 EOF
 
-    popd || exit
+  popd || exit
 
-  get_add_to_file_content "./views/shared/" "_Layout.cshtml" '<link rel="stylesheet" href="http://localhost:4200/styles.css" />' 'vite/client' "above"
+  # Inject stylesheet link into layout
+  get_add_to_file_content "./views/shared/" "_Layout.cshtml" \
+    '<link rel="stylesheet" href="http://localhost:4200/styles.css" />' \
+    'vite/client' "above"
+
 else
+  newComponentsPath=""
     if [[ $framework == "marko" ]]; then
-        $componentsPath = $tagsPath
+        newComponentsPath=$tagsPath
+    else
+        newComponentsPath=$componentsPath
     fi
+    path=""
     for templateItem in "${componentsTemplates[@]}"; do
         name="${templateItem%%:*}"
         content="${templateItem#*:}"
         
-        wrappedContent="$(get_wrapped_template "$content" "$name")"
-        
         if [[ "$name" == "Navbar" || "$name" == "Footer" ]]; then
-            path="$componentsPath/$name.$extension"
+            path="$newComponentsPath/$name.$extension"
         else
             path="$pagesPath/$name.$extension"
         fi
+        wrappedContent=$(get_wrapped_template "$content" "$name" "$framework")
         
         # Write wrapped content to file with UTF-8 encoding
 cat << EOF > $path
@@ -2016,12 +2350,12 @@ EOF
 	elif [[ "$framework" == "qwik" ]]; then
 		get_add_to_file_content "$clientPath/src/pages" "Home.$variantLanguage" "$svgImports" "export default component" "above"
 	elif [[ "$framework" == "marko" ]]; then
-		get_add_to_file_content "$clientPath/src/pages" "Home.marko" "$svgImports" "\<section class='" "above"
+		get_add_to_file_content "$clientPath/src/pages" "Home.marko" "$svgImports" '\<section class="' "above"
 	elif [[ "$framework" == "lit" ]]; then
 		get_add_to_file_content "$clientPath/src/pages" "Home.$variantLanguage" "$svgImports" "\@customElement" "above"
 	elif [[ "$framework" == "svelte" ]]; then
-		get_add_to_file_content "$clientPath/src/pages" "Home.$extension" "$svgImports" "\<\/script\>" "above"
-		mv "$clientPath/public/assets/"*.svg "$clientPath/public/"
+		get_add_to_file_content "$clientPath/src/pages" "Home.svelte" "$svgImports" "<script lang=" "below"
+	
 	fi
 
 # Remove HelloWorld component if framework is not marko
@@ -2037,28 +2371,34 @@ EOF
 		appPath="$clientPath/src/App.$extension"
 	fi
 
-	get_app_config(){
-		local frame="$1" # e.g., react, svelte, angular
+get_app_config(){
+		local main_frame="$1" # e.g., react, svelte, angular
 		local variants="$2" # e.g., ts, js, jsx
 		declare -g app="" 
-		case "$frame" in
-        react)
-$app=$(cat <<EOF
+case "$main_frame" in
+"react")
+filPathType=""
+if [[ "$variants" == "tsx" ]]; then
+    filPathType=" as () => Promise<{ default: React.ComponentType<any> }>)()"
+else
+    filePathType="()"
+fi
+app=$(cat << EOF
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router';
 import { routes as config } from './router.config';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-
 const pages = import.meta.glob('./pages/**/*.$variantLanguages');
+
 const App = () => {
     return (
          <Router>
             <Navbar />
              <Routes>
                     {config.map(({ path, componentPath }, index) => {
-                        const filePath = \`${componentPath}.$variantLanguages\`; // Must match glob
-                        const Component = lazy(() => pages[filePath]());
+                        const filePath = \`\${componentPath}.$variants\`; // Must match glob
+                        const Component = lazy(() => (pages[filePath] $filPathType);
                         return (
                             <Route
                                 key={index}
@@ -2084,11 +2424,15 @@ cat << EOF > $clientPath"/src/index.css"
 EOF
 > $clientPath"/src/App.css"
 cp "$clientPath\public\assets\react.svg" "$clientPath\public"
-npm i react-router bootstrap
-get_add_to_file_content "$clientPath/src/" "main.$variantLanguage" "import 'bootstrap/dist/css/bootstrap.min.css';" "import App from " "above"
+
+pushd ./$clientPath || exit
+npm install react-router bootstrap
+popd || exit
+
+get_add_to_file_content "$clientPath/src/" "main.$variants" "import 'bootstrap/dist/css/bootstrap.min.css';" "import App from " "above"
             ;;
-        solid)
-$app = $(cat <<EOF
+        "solid")
+app=$(cat << EOF
 import { Router, Route } from '@solidjs/router';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -2102,7 +2446,7 @@ function App() {
           {routes.map((m) => (
             <Route
               path={m.path}
-              component={m.component} // Use `element` prop, not `component`
+              component={m.component} // Use ``element`` prop, not ``component``
             />
           ))}
       </Router>
@@ -2114,7 +2458,7 @@ function App() {
 export default App;
 EOF
 )
-npm i @solidjs/router bootstrap
+npm install @solidjs/router bootstrap
 cat > $clientPath"/src/App.css" << EOF
 $mainStyle
 .logo.solid:hover {
@@ -2122,12 +2466,12 @@ $mainStyle
 }
 EOF
 > $clientPath"/src/index.css"
-get_add_to_file_content "$clientPath/src/" "index.$variantLanguage" "import 'bootstrap/dist/css/bootstrap.min.css';" "import \'.\/index.css\'" "above"
-rename "$clientPath/src/index.$variantLanguage" "main.$variantLanguage"
+get_add_to_file_content "$clientPath/src/" "index.$variants" "import 'bootstrap/dist/css/bootstrap.min.css';" "import \'.\/index.css\'" "above"
+get_add_to_file_content "./Views/Shared/" "_Layout.cshtml" '<script type="module" src="http://localhost:5173/src/index.'$variants'"></script>' "main.$variants" "replace"
 
             ;;
-        vue)
-$app=$(cat <<EOF
+        "vue")
+app=$(cat << EOF
 <template>
   <div class="w-100">
     <Navbar />
@@ -2142,9 +2486,10 @@ import MainFooter from './components/Footer.vue';
 </script>
 EOF
 )
-npm i vue-router bootstrap
-
-cat > "$clientPath/src/route.$variantLanguage" <<EOF
+pushd ./$clientapp || exit
+npm install vue-router bootstrap
+popd || exit
+cat > "$clientPath/src/route.$variantLanguage" << EOF
 import { createRouter, createWebHistory  } from 'vue-router';
 import { routes as config } from './router.config';
 
@@ -2169,24 +2514,25 @@ const router = createRouter({
 });
 export default router;
 EOF
-cat > "$clientPath/src/style.css" <<EOF
+cat > "$clientPath/src/style.css" << EOF
 $mainStyle
 EOF
-_add=$(cat <<EOF
+_add=$(cat << EOF
 import router from './route';
 import 'bootstrap/dist/css/bootstrap.min.css';
 EOF
 )
 get_add_to_file_content "$clientPath/src/"  "main.$variantLanguage" "$_add" "import App from" "below"
 get_add_to_file_content "$clientPath/src/"  "main.$variantLanguage" "createApp(App).use(router).mount('#app');" "createApp\(App\)" "replace"
+mv "$clientPath/public/assets/vue.svg" "$clientPath/public/"
             ;;
-        lit)
-cat >  "$clientPath/src/main.$variantLanguage" <<EOF
+        "lit")
+cat >  "$clientPath/src/main.$variants" << EOF
 import { LitElement, html } from 'lit';
 import { customElement} from 'lit/decorators.js';
 
 // Import the app-element so its tag is defined
-import './app-element.$variantLanguage';
+import './app-element.$variants';
 
 @customElement('main-element')
 export class MainElement extends LitElement {
@@ -2208,32 +2554,67 @@ declare global {
 
 }
 EOF
-cat > "$clientPath/src/index.css" <<EOF
+app=$(cat << EOF
+import { LitElement, html } from 'lit';
+import { customElement } from 'lit/decorators.js';
+import { Router } from '@lit-labs/router';
+
+// Importing components so they're registered
+import './components/Navbar.$variantLanguage';
+import './components/Footer.$variantLanguage';
+import './pages/Home.$variantLanguage';
+import './pages/Counter.$variantLanguage';
+import './pages/WeatherForecast.$variantLanguage';
+
+@customElement('app-element')
+export class App extends LitElement {
+ createRenderRoot() {
+    // Render into light DOM (no Shadow DOM)
+    return this;
+  }
+
+  render() {
+    return html\`
+      <navbar-element></navbar-element>
+      <div>\`\${this._routes.outlet()}</div>
+      <footer-element></footer-element>
+    \`;
+  }
+
+   private _routes = new Router(this, [
+        { path: '/', render: () =>  html\`<home-element></home-element>\` },
+        { path: '/counter', render: () =>  html\`<counter-element></counter-element>\` },
+        { path: '/fetch-data', render: () =>  html\`<weatherforecast-element></weatherforecast-element>\` },
+    ]);
+}
+EOF
+)
+cat > "$clientPath/src/index.css" << EOF
 @import "./node_modules/bootstrap/dist/css/bootstrap.min.css";
 $mainStyle
 EOF
-rm -r "$clientPath/src/my-element.$variantLanguage"
-cat > $clientPath"/index.html" <<EOF
+rm -r -f "$clientPath/src/my-element.$variants"
+cat << EOF > $clientPath"/index.html"
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dotnet + Vite + Lit + $($variantLanguage.toUpper())</title>
+    <title>Dotnet + Vite + Lit + ${variants^^}</title>
     <link rel="stylesheet" href="./src/index.css" />
     </head>
     <body>
     <main-element>
     </main-element>
-    <script type="module" src="/src/main.$variantLanguage"></script>
+    <script type="module" src="/src/main.$variants"></script>
   </body>
 </html>
 EOF
-npm i @lit-labs/router bootstrap
+npm install @lit-labs/router bootstrap
             ;;
-        svelte)
-$app=$(cat <<EOF
+        "svelte")
+app=$(cat << EOF
 <script lang='$variantLanguage'>
 import { Router, Route } from 'svelte-routing';
 import Navbar from './components/Navbar.svelte';
@@ -2259,14 +2640,16 @@ let routes = [
 </Router>
 EOF
 )
-npm i svelte-routing bootstrap
-cat > "$clientPath/src/app.css" <<EOF
+pushd ./$clientPath || exit
+npm install svelte-routing bootstrap
+popd || exit
+cat > "$clientPath/src/app.css" << EOF
 $mainStyle
 EOF
 get_add_to_file_content "$clientPath/src/" "main.$variantLanguage" "import 'bootstrap/dist/css/bootstrap.min.css';" "import \'.\/app.css\'" "above"
             ;;
-        qwik)
-$app= $(cat <<EOF
+        "qwik")
+app=$(cat << EOF
 import { component$, useSignal, useVisibleTask$ } from '@builder.io/qwik';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -2319,34 +2702,36 @@ export default component\$(() => {
 });
 EOF
 )
-npm i bootstrap
-get_add_to_file_content "$clientPath/src/" "main.$variantLanguage" "import 'bootstrap/dist/css/bootstrap.min.css';"  "import \'.\/index.css\'" "above"
-get_add_to_file_content "$clientPath/src/" "main.$variantLanguage" "import App from './app.$variantLanguage';"  "import { App } from " "replace"
+pushd ./$clientapp || exit
+npm install bootstrap
+popd || exit
+get_add_to_file_content "$clientPath/src/" "main.$variants" "import 'bootstrap/dist/css/bootstrap.min.css';"  "import \'.\/index.css\'" "above"
+get_add_to_file_content "$clientPath/src/" "main.$variants" "import App from './app.$variants';"  "import { App } from " "replace"
 > "$clientPath/src/index.css"
-cat <<EOF > "$clientPath/src/app.css" 
+cat << EOF > "$clientPath/src/app.css" 
 $mainStyle
 .logo.qwik:hover {
   filter: drop-shadow(0 0 2em #673ab8aa);
 }
 EOF
-mv "$clientPath/public/assets/*.svg" "$clientPath/public/"
+mv "$clientPath/public/assets/qwik.svg" "$clientPath/public/"
             ;;
-        marko)
-cat <<EOF >  ".\clientapp\src\pages\index.marko" 
+        "marko")
+cat << EOF >  ".\clientapp\src\pages\index.marko" 
 <Navbar />
 <main id="router-view"></main>
 <App-Footer />
 EOF
-cat <<EOF >  ".\clientapp\src\main.$variantLanguage" 
+cat << EOF >  ".\clientapp\src\main.$variants" 
 import { initRouter } from "./router";
 
 initRouter(document.getElementById("app"));
 EOF
 
-get_add_to_file_content ".\Views\shared\\"  "_Layout.cshtml"  '<link rel="stylesheet" href="http://localhost:5173/src/styles.css">'  "vite\/client"  "above"
-get_add_to_file_content ".\Views\shared\\"  "_Layout.cshtml"  '<link rel="stylesheet" href="/bootstrap.min.css">'  "vite\/client"  "above"
+get_add_to_file_content ".\Views\shared\\"  "_Layout.cshtml"  '<link rel="stylesheet" href="/bootstrap.min.css">'  '<link rel="stylesheet" href="/lib/dist/bootstrap.min.css" />'  "replace"
+get_add_to_file_content ".\Views\shared\\"  "_Layout.cshtml"  '<link rel="stylesheet" href="http://localhost:5173/src/styles.css">'  '<link rel="stylesheet" href="/bootstrap.min.css">'  "below"
 mv  "./wwwroot/lib/bootstrap/dist/css/bootstrap.min.css" "./wwwroot"
-cat <<EOF > ".\\${clientPath}\\index.html"
+cat << EOF > ".\\${clientPath}\\index.html"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2357,12 +2742,12 @@ cat <<EOF > ".\\${clientPath}\\index.html"
 </head>
 <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.${variantLanguage}"></script>
+    <script type="module" src="/src/main.${variants}"></script>
 </body>
 </html>
 EOF
 
-cat <<EOF >  ".\\${clientPath}\\src\\styles.css"
+cat << EOF >  ".\\${clientPath}\\src\\styles.css"
 $mainStyle
 
 .logo.marko:hover {
@@ -2370,11 +2755,11 @@ filter: drop-shadow(0 0 1em #ff036caa);
 }
 EOF
 
-cat  <<EOF >  ".\\${clientPath}\\public\\vite.svg" 
+cat  << EOF >  ".\\${clientPath}\\public\\vite.svg" 
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>
 EOF
 
-cat <<EOF > ".\\${clientPath}\\public\\marko.svg" 
+cat << EOF > ".\\${clientPath}\\public\\marko.svg" 
     <svg xmlns="http://www.w3.org/2000/svg" width="512" viewBox="0 0 2560 1400" class="marko">
     <path fill="url(#a)" d="M427 0h361L361 697l427 697H427L0 698z" />
     <linearGradient id="a" x2="0" y2="1">
@@ -2418,7 +2803,7 @@ cat <<EOF > ".\\${clientPath}\\public\\marko.svg"
     </svg>
 EOF
 
-    cat <<EOF >  ".\\${clientPath}\\public\\dotnet.svg" 
+    cat << EOF >  ".\\${clientPath}\\public\\dotnet.svg" 
     <svg width="456" height="456" viewBox="0 0 456 456" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="456" height="456" fill="#512BD4"/>
     <path d="M81.2738 291.333C78.0496 291.333 75.309 290.259 73.052 288.11C70.795 285.906 69.6665 283.289 69.6665 280.259C69.6665 277.173 70.795 274.529 73.052 272.325C75.309 270.121 78.0496 269.019 81.2738 269.019C84.5518 269.019 87.3193 270.121 89.5763 272.325C91.887 274.529 93.0424 277.173 93.0424 280.259C93.0424 283.289 91.887 285.906 89.5763 288.11C87.3193 290.259 84.5518 291.333 81.2738 291.333Z" fill="white"/>
@@ -2427,14 +2812,205 @@ EOF
     <path d="M392.667 187.695H359.457V289.515H340.272V187.695H307.143V171H392.667V187.695Z" fill="white"/>
     </svg>
 EOF
-mv "$clientPath/src/tags/Footer.marko"  "App-Footer.marko"
+mv "$clientPath/src/tags/Footer.marko"  "$clientPath/src/tags/App-Footer.marko"
+rm -r -f "$clientPath/src/components"
             ;;
-        vanilla)
-            echo "// Vanilla JS entry point for ${frame} framework."
-			;;
-			*)
-			echo "Invalid"
-    esac
+        "preact")
+if [[ "$variants" == "tsx" ]]; then
+    filePathType=" as () => Promise<{ default: preact.FunctionComponent<any> }>)()"
+else
+    filePathType="()"
+fi
+pushd "$clientPath" || exit
+npm install preact-router && npm install bootstrap && npm audit fix --force
+popd || exit
+
+app=$(cat << EOF
+import { lazy, Suspense } from 'preact/compat';
+import Router from 'preact-router';
+import config from './router.config.ts';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+
+const pages = import.meta.glob('./pages/**/*.$variantLanguage');
+
+export function App() {
+  return (
+    <div>
+      <Navbar />
+      <Suspense fallback={<div>Loading...</div>}>
+        <Router>
+        {config.map(({ path, componentPath }, index) => {
+            const filePath = \`\${componentPath}.$variantLanguage\`; // Must match glob
+            const Component = lazy(() => (pages[filePath] $filePathType);
+            return <Component key={index} path={path} />;
+          })}
+        </Router>
+      </Suspense>
+      <Footer />
+    </div>
+  );
+};
+export default App;
+EOF
+)
+
+cat << EOF > "$clientPath/src/index.css" 
+$mainStyle
+.logo.preact:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
 }
-get_app_config "$framework" "$variantLanguage"
+EOF
+> $clientPath"/src/App.css"
+get_add_to_file_content  $clientPath"/src/"  "main.$variantLanguage"  "import 'bootstrap/dist/css/bootstrap.min.css';"  "import { App } from "  "above"
+get_add_to_file_content  $clientPath"/src/"  "main.$variantLanguage"  "import App from './app.$variantLanguage';"  "import { App } from "  "replace"
+cp "$clientPath\public\assets\preact.svg" "$clientPath\public"
+
+            ;;
+        "vanilla") 
+        # Define type-specific variables if using TypeScript
+if [[ "$variants" == "ts" ]]; then
+  _tsHtElType=": HTMLElement"
+  _tsAsAnchorElType="as HTMLAnchorElement"
+  _tsComType=": () => string | Node"
+  _tsSelectorDivType="<HTMLDivElement>"
+else
+  _tsHtElType=""
+  _tsAsAnchorElType=""
+  _tsComType=""
+  _tsSelectorDivType=""
+fi
+
+# Create App file
+app=$(cat << EOF
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import Counter from './pages/Counter';
+import Weather from './pages/WeatherForecast';
+
+export function App() {
+  const app = document.querySelector$_tsSelectorDivType('#app');
+  if (!app) return;
+
+  // Create layout once
+  app.innerHTML = \`<div id="navbar"></div>
+    <div id="route"></div>
+    <div id="footer"></div>\`;
+
+  // Inject navbar and footer
+  const navbar = document.querySelector$_tsSelectorDivType('#navbar');
+  const footer = document.querySelector$_tsSelectorDivType('#footer');
+  const route = document.querySelector$_tsSelectorDivType('#route');
+
+  const content = (data$_tsHtElType, component$_tsComType) => {
+    const contents = component();
+    if (typeof contents === 'string') {
+      data.innerHTML = contents;
+    } else if (contents instanceof Node) {
+      data.replaceChildren(contents);
+    }
+    return '';
+  }
+
+  if (navbar) content(navbar, () => Navbar().html);
+  if (footer) content(footer, () => Footer().html);
+  if (!route) return;
+
+  // Set content based on route
+  const path = window.location.pathname;
+
+  switch (path) {
+    case '/': {
+      const home = Home();
+      route.replaceChildren(home.html);
+      break;
+    }
+    case '/counter': {
+      const counter = Counter();
+      route.replaceChildren(counter.html);
+      counter.setup();
+      break;
+    }
+    case '/fetch-data': {
+      const weather = Weather();
+      route.replaceChildren(weather.html);
+      weather.setup();
+      break;
+    }
+    default:
+      route.innerHTML = \`
+        <section class="container text-center">
+         <div class="py-5">
+          <h1 class="display-2 text-secondary">404 - Page Not Found</h1>
+          <p class="lead">The page you are looking for does not exist.</p>
+          <a href="/" class="btn btn-primary">Go to Home</a>
+          </div>
+        </section>
+      \`;
+  }
+
+  // Register SPA-style nav links
+  document.querySelectorAll('[data-link]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const href = (e.currentTarget $_tsAsAnchorElType).getAttribute('href');
+      if (href) {
+        window.history.pushState(null, '', href);
+        App();
+      }
+    });
+  });
+}
+EOF
+)
+# Create style.css
+cat << EOF > "$clientPath/src/style.css"
+$mainStyle
+.logo.vanilla:hover {
+  filter: drop-shadow(0 0 2em #3178c6aa);
+}
+EOF
+if [[ "$variants" == "ts" ]]; then
+    get_add_to_file_content "$clientPath/src/pages" "WeatherForecast.ts" "export $_IWeatherInterface" "const WeatherForecast" "above"
+fi
+# Create main.ts or main.js
+cat << EOF > "$clientPath/src/main.$variants"
+import { App } from './App';
+import './style.css';
+
+document.addEventListener('DOMContentLoaded', () => {
+  App();
+
+  // Handle browser back/forward
+  window.addEventListener('popstate', () => {
+    App();
+  });
+});
+EOF
+    get_add_to_file_content "Views\Shared\\" "_Layout.cshtml" '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">' '<script type=\"module\" src=\"http\:\/\/localhost\:5173\/\@\@vite\/client\"><\/script>' "above"
+    
+  if [[ "$variants" == "ts" ]]; then
+    mv "$clientPath/src/typescript.svg" "$clientPath/public/"
+  else
+     mv "$clientPath/src/javascript.svg" "$clientPath/public/"
+  fi
+  rm -r -f "$clientPath/src/counter.$extension"
+            ;;
+			*)	echo "Invalid framework"   ;;
+    esac
+if [[ "$framework" == "lit" ]]; then
+  cat << EOF > "$clientPath/src/app-element.$variants"
+$app
+EOF
+
+elif [[ "$framework" != "marko" || "$framework" != "lit" ]]; then
+  cat << EOF > "$clientPath/src/app.$variants"
+$app
+EOF
+
+fi
+
+}
+get_app_config "$framework" "$extension"
 fi
